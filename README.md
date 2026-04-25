@@ -4,8 +4,8 @@
 
 This repository is the canonical home for:
 
-- The **DataBook Format Specification** (`SPEC.md`)
-- The **DataBook CLI** — a Node.js reference implementation (`implementations/js/`)
+- The [**DataBook Format Specification**](`SPEC.md`) ('SPEC.md')
+- The [**DataBook CLI for NodeJS**](`implementations/js/`) — a Node.js reference implementation (`implementations/js/`)
 - **Example DataBooks** demonstrating the full range of format features (`examples/`)
 
 ---
