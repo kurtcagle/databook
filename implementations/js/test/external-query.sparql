@@ -1,14 +1,28 @@
-PREFIX proj: <https://w3id.org/databook/test/project-v1#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX dct:  <http://purl.org/dc/terms/>
+# External SPARQL query for databook pull --query testing
+# Usage: databook pull observatory.databook.md \
+#          --endpoint http://localhost:3030/ds/sparql \
+#          --query test/external-query.sparql \
+#          -o result.ttl
 
-SELECT ?task ?taskLabel ?assignee ?assigneeLabel ?project ?projectLabel WHERE {
-    ?task a proj:Task ;
-          rdfs:label ?taskLabel ;
-          proj:assignedTo ?assignee ;
-          proj:inProject ?project .
-    ?assignee rdfs:label ?assigneeLabel .
-    ?project rdfs:label ?projectLabel .
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX obs:  <https://w3id.org/databook/test/observatory-v1#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+CONSTRUCT {
+  ?platform a sosa:Platform ;
+            rdfs:label ?platformLabel .
+  ?sensor   a sosa:Sensor ;
+            rdfs:label ?sensorLabel ;
+            sosa:isHostedBy ?platform ;
+            obs:lastCalibrated ?cal .
 }
-ORDER BY ?projectLabel ?taskLabel
+WHERE {
+  ?platform a sosa:Platform ;
+            rdfs:label ?platformLabel .
+  ?sensor   a sosa:Sensor ;
+            rdfs:label ?sensorLabel ;
+            sosa:isHostedBy ?platform .
+  OPTIONAL { ?sensor obs:lastCalibrated ?cal . }
+}
+ORDER BY ?sensorLabel

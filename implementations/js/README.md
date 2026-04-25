@@ -1,337 +1,314 @@
-# DataBook CLI
+# databook-cli
 
-The DataBook CLI is the reference implementation of the [DataBook format](../../SPEC.md) — a Markdown-based format for self-describing semantic documents carrying RDF/SPARQL/SHACL data alongside human-readable prose.
+Node.js CLI for **DataBook** semantic documents — Markdown files that carry typed RDF/SPARQL/SHACL payloads alongside human-readable prose and self-describing YAML frontmatter.
+
+Spec: [github.com/kurtcagle/databook](https://github.com/kurtcagle/databook) · Namespace: `https://w3id.org/databook/ns#`
 
 ---
 
 ## Installation
 
-**Requirements:** Node.js ≥ 18
-
 ```bash
-cd implementations/js
-npm install
-npm link          # makes 'databook' available globally, or use 'node bin/databook.js'
+# From the package directory
+npm install -g .
+
+# Or run directly
+node bin/databook.js <command>
 ```
 
-**Configuration:** Copy `processors.default.toml` to `processors.toml` and set your default SPARQL endpoint and any API keys.
+**Requires Node.js ≥ 18.0.0** (uses native `fetch`).
+
+---
+
+## Commands
+
+### `databook head` — Inspect a DataBook
+
+Extracts frontmatter and block metadata. Never modifies input. Useful for pipeline inspection and conditional branching.
 
 ```bash
-cp processors.default.toml processors.toml
-# Edit processors.toml to set [default_endpoint] and [llm] settings
+# Default: frontmatter + block summary as JSON
+databook head source.databook.md
+
+# Specific block metadata
+databook head source.databook.md --block-id primary-block
+
+# All output formats
+databook head source.databook.md --format json     # default
+databook head source.databook.md --format yaml
+databook head source.databook.md --format xml
+databook head source.databook.md --format turtle
+
+# Pipeline use: extract block ids with role=primary
+databook head source.databook.md --format json \
+  | jq -r '.blocks[] | select(.role == "primary") | .id'
+
+# Check triple count before processing
+TRIPLE_COUNT=$(databook head source.databook.md --format json \
+  | jq '.frontmatter.graph.triple_count')
+
+# Stdin
+cat source.databook.md | databook head --format yaml
 ```
 
 ---
 
-## Command Reference
+### `databook push` — Send DataBook RDF to a triplestore
 
-All commands follow POSIX conventions: stdin is accepted when no file argument is given (or `-` is passed explicitly), stdout is the default output, and pipes compose cleanly.
+Pushes RDF blocks to a SPARQL-compatible triplestore via the SPARQL 1.1 Graph Store Protocol (GSP). Each block becomes a discrete named graph. Frontmatter provenance is pushed to a `#meta` graph by default.
 
-### `head` — Inspect DataBook structure
-
-Outputs the frontmatter and block inventory without loading block content.
+**Pushable block types:** `turtle`, `turtle12`, `trig`, `json-ld`, `shacl`, `sparql-update`
 
 ```bash
-databook head <file> [options]
+# Push all RDF blocks to Fuseki
+databook push ontology.databook.md \
+  --endpoint http://localhost:3030/ds/sparql
+
+# Push one block with an explicit graph IRI
+databook push ontology.databook.md \
+  --block-id primary-block \
+  --graph https://example.org/my-graph \
+  --endpoint http://localhost:3030/ds/sparql
+
+# Merge (POST) instead of replace (PUT)
+databook push ontology.databook.md --endpoint ... --merge
+
+# Suppress meta graph
+databook push ontology.databook.md --endpoint ... --no-meta
+
+# Dry-run to see what would be sent
+databook push ontology.databook.md --endpoint ... --dry-run
+
+# Auth via env var (recommended for CI)
+DATABOOK_FUSEKI_AUTH="Basic YWRtaW46cGFzc3dvcmQ=" \
+  databook push file.databook.md --endpoint http://host/ds/sparql
 ```
 
-| Option | Description |
-| --- | --- |
-| `--format` | Output format: `json` (default), `yaml`, `xml`, `turtle` |
-| `--block-id <id>` | Return metadata for a single block only |
-| `--output <path>` | Write to file instead of stdout |
-| `--quiet` | Suppress warnings |
+**Named graph assignment** (priority order):
+1. `--graph <iri>` (single-block only)
+2. `frontmatter.graph.named_graph` (single-block documents only)
+3. Fragment-addressing rule: `{document.id}#{block-id}`
 
-**Examples:**
-
-```bash
-# JSON summary of all blocks
-databook head myfile.databook.md
-
-# YAML format
-databook head myfile.databook.md --format yaml
-
-# Turtle RDF description
-databook head myfile.databook.md --format turtle
-
-# Single block metadata
-databook head myfile.databook.md --block-id primary-graph
-
-# Pipe to jq
-databook head myfile.databook.md --quiet | jq '.blocks[] | select(.label == "sparql") | .id'
-```
+**GSP endpoint inference:** `/sparql → /data`, `/query → /data`. Override with `--gsp-endpoint` for non-Fuseki stores.
 
 ---
 
-### `extract` — Extract a block's content
+### `databook pull` — Fetch RDF from a triplestore into a DataBook
 
-Extracts the raw content of a named block, stripping `databook:` comment metadata.
-
-```bash
-databook extract <file> [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `--block-id <id>` | Block to extract (required) |
-| `--format <label>` | Override output format label |
-| `--output <path>` | Write to file instead of stdout |
-
-**Examples:**
-
-```bash
-# Extract Turtle block to stdout (pipe to rdflib, Jena, etc.)
-databook extract myfile.databook.md --block-id primary-graph
-
-# Extract to file
-databook extract myfile.databook.md --block-id primary-graph --output graph.ttl
-
-# Pipe directly to Jena riot for validation
-databook extract myfile.databook.md --block-id primary-graph | riot --syntax turtle -
-```
-
----
-
-### `push` — Push graph data to a SPARQL endpoint
-
-Pushes pushable blocks (Turtle, SHACL, SPARQL Update) to a triplestore using the SPARQL Graph Store Protocol.
-
-```bash
-databook push <file> [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `--endpoint <url>` | SPARQL endpoint URL (or set `[default_endpoint]` in `processors.toml`) |
-| `--block-id <id>` | Push only this block (default: all pushable blocks) |
-| `--graph <iri>` | Override named graph IRI (single block only) |
-| `--merge` | POST (merge) instead of PUT (replace) |
-| `--no-meta` | Suppress frontmatter reification to `#meta` graph |
-| `--dry-run` | Log what would be sent without sending |
-| `--auth <token>` | Bearer token for authentication |
-
-**Examples:**
-
-```bash
-# Push all blocks
-databook push myfile.databook.md --endpoint http://localhost:3030/ds/sparql
-
-# Push specific block
-databook push myfile.databook.md --block-id primary-graph --endpoint http://localhost:3030/ds/sparql
-
-# Dry run to see what would be sent
-databook push myfile.databook.md --endpoint http://localhost:3030/ds/sparql --dry-run
-
-# Merge rather than replace
-databook push myfile.databook.md --merge --endpoint http://localhost:3030/ds/sparql
-```
-
----
-
-### `pull` — Pull graph data from a SPARQL endpoint
-
-Pulls RDF content from a SPARQL endpoint and writes it to a DataBook block or to stdout.
-
-```bash
-databook pull <file> [options]
-```
-
-**Modes:**
+Retrieves RDF from a SPARQL endpoint into a DataBook. Operates in three modes:
 
 | Mode | Trigger | Protocol |
-| --- | --- | --- |
-| Named graph fetch | Default (no `--query`, no `--fragment`) | GSP GET |
-| External query | `--query <sparql-file>` | SPARQL query POST |
-| Fragment-ref | `--fragment <block-id>` | SPARQL query POST using embedded block |
-| SHACL DESCRIBE | `--describe <iri> --shapes <ref>` | SPARQL CONSTRUCT |
-
-| Option | Description |
-| --- | --- |
-| `--endpoint <url>` | SPARQL endpoint URL |
-| `--graph <iri>` | Named graph IRI to fetch (default: `graph.named_graph` from frontmatter) |
-| `--query <file>` | External SPARQL file to execute |
-| `--fragment <block-id>` | Execute embedded SPARQL block by `databook:id` |
-| `--describe <iri>` | IRI to DESCRIBE using SHACL-guided CONSTRUCT |
-| `--shapes <ref>` | DataBook or block IRI containing SHACL shapes for DESCRIBE |
-| `--block-id <id>` | Block in the DataBook to replace with pull results |
-| `--output <path>` | Write to file instead of stdout |
-| `--infer` | Request inference-enabled query endpoint |
-
-**Examples:**
+|---|---|---|
+| Named graph fetch | Default | GSP GET |
+| External query | `--query <file>` | SPARQL POST |
+| Fragment-ref | `--fragment <block-id>` | SPARQL POST using embedded block |
 
 ```bash
-# Fetch named graph (uses graph.named_graph from frontmatter)
-databook pull myfile.databook.md --endpoint http://localhost:3030/ds/sparql
-
-# Execute embedded SPARQL block
-databook pull myfile.databook.md --fragment construct-tasks --endpoint http://localhost:3030/ds/sparql
-
-# Execute external SPARQL file
-databook pull myfile.databook.md --query test/external-query.sparql --endpoint http://localhost:3030/ds/sparql
-
-# SHACL-guided DESCRIBE (CLI v1.1 feature)
-databook pull myfile.databook.md \
-  --describe https://w3id.org/databook/test/project-v1#AliceSmith \
-  --shapes test/shapes.databook.md#project-shapes \
+# Fetch named graph to stdout
+databook pull sensors.databook.md \
   --endpoint http://localhost:3030/ds/sparql
+
+# Fetch specific graph IRI
+databook pull sensors.databook.md \
+  --endpoint http://localhost:3030/ds/sparql \
+  --graph https://example.org/sensors
+
+# Execute embedded SPARQL block and replace data block in-place
+databook pull sensors.databook.md \
+  --endpoint http://localhost:3030/ds/sparql \
+  --fragment sensor-construct \
+  --block-id sensor-graph \
+  --stats \
+  --out sensors.databook.md       # same path = atomic in-place update
+
+# External .sparql/.rq file
+databook pull onto.databook.md \
+  --endpoint http://localhost:3030/ds/sparql \
+  --query queries/extract.sparql \
+  -o result.ttl
+
+# Dry-run shows the extracted SPARQL query
+databook pull sensors.databook.md \
+  --fragment sensor-construct \
+  --dry-run
 ```
+
+`--stats` recomputes `graph.triple_count` and `graph.subjects` in frontmatter using N3.js after a successful Turtle/TriG pull.
 
 ---
 
-### `clear` — Remove named graphs from a triplestore
+### `databook process` — Execute a pipeline DataBook
+
+Executes a `processor-registry` DataBook as a DAG pipeline against a source DataBook. Supports:
+
+- **Full pipeline mode** (`-P <process-databook>`): Multi-stage DAG with `build:dependsOn` ordering
+- **Single-operation shorthand**: `--sparql`, `--shapes`, `--xslt`, `--xquery`
+
+**Supported processors** (configured via `processors.toml`):
+
+| Type | Tool | processors.toml key |
+|---|---|---|
+| `sparql` | Apache Jena ARQ | `jena-sparql` |
+| `shacl` | Apache Jena SHACL | `jena-shacl` |
+| `xslt` | Saxon HE 12 | `saxon-xslt` |
+| `xquery` | Saxon HE 12 | `saxon-xquery` |
+| `sparql-anything` | SPARQL Anything 0.9 | `sparql-anything` |
 
 ```bash
-databook clear <file> [options]
+# Full pipeline
+databook process source.databook.md \
+  -P pipeline.databook.md \
+  -o output.databook.md
+
+# Single SPARQL CONSTRUCT
+databook process source.databook.md \
+  --sparql queries.databook.md#construct-graph \
+  -o output.databook.md
+
+# Single SHACL validation
+databook process source.databook.md \
+  --shapes shapes.databook.md#person-shapes \
+  -o report.databook.md
+
+# With VALUES parameter injection
+databook process source.databook.md \
+  --sparql queries.databook.md#typed-query \
+  --params '{"type":"ex:Person"}' \
+  -o people.databook.md
+
+# Dry-run shows execution plan
+databook process source.databook.md -P pipeline.databook.md --dry-run
 ```
 
-| Option | Description |
-| --- | --- |
-| `--endpoint <url>` | SPARQL endpoint URL |
-| `--graph <iri>` | Clear this named graph only |
-| `--all` | Clear all named graphs listed in the DataBook |
-| `--dry-run` | Log what would be deleted without deleting |
+**DAG execution model:** Stages are topologically sorted by `build:dependsOn` edges. Within a topological layer, `build:order` is the tiebreaker.
 
 ---
 
-### `convert` — Convert a DataBook between serialisation formats
+## Configuration
 
-Converts DataBook content or block payloads between formats.
+### `processors.toml`
 
-```bash
-databook convert <file> [options]
+Declares deployment details for processors and endpoints. Three-layer discovery chain (later layers override earlier):
+
+```
+{package}/processors.default.toml     ← shipped template (read-only)
+~/.config/databook/processors.toml    ← user-level
+{project}/.databook/processors.toml   ← project-level
 ```
 
-| Option | Description |
-| --- | --- |
-| `--block-id <id>` | Convert this block only |
-| `--from <format>` | Source format (inferred from block label if omitted) |
-| `--to <format>` | Target format |
-| `--output <path>` | Write to file instead of stdout |
+> **Do not commit `processors.toml` to version control.** Add it to `.gitignore`.
 
----
-
-### `process` — Run a pipeline defined in a manifest DataBook
-
-Executes a pipeline defined in a manifest DataBook, running each stage in dependency order.
-
-```bash
-databook process <manifest-file> [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `--endpoint <url>` | SPARQL endpoint for graph store operations |
-| `--sparql <ref>` | Override the SPARQL block used for a stage |
-| `--params <file>` | JSON or YAML file for VALUES injection |
-| `--dry-run` | Resolve pipeline without executing stages |
-
-**Examples:**
-
-```bash
-databook process pipeline.databook.md --endpoint http://localhost:3030/ds/sparql
-databook process pipeline.databook.md --sparql queries.databook.md#construct-active-tasks
-```
-
----
-
-### `transform` — Apply a named transform to a DataBook
-
-Applies a single named transform (SPARQL CONSTRUCT, XSLT, prompt) to a DataBook and produces a new DataBook.
-
-```bash
-databook transform <file> [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `--sparql <ref>` | Fragment IRI of a SPARQL CONSTRUCT block |
-| `--xslt <file>` | XSLT file to apply |
-| `--output <path>` | Write to file instead of stdout |
-| `--params <file>` | JSON or YAML parameter file |
-
----
-
-### `prompt` — Execute a prompt block against an LLM
-
-Executes a `prompt` block against the configured LLM, optionally injecting DataBook context.
-
-```bash
-databook prompt <file> [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `--block-id <id>` | Prompt block to execute (default: first `prompt` block) |
-| `--context <ref>` | DataBook or block IRI to inject as context |
-| `--output <path>` | Write to file instead of stdout |
-| `--model <model>` | Override model from processors.toml |
-
----
-
-### `create` — Create a new DataBook from existing content
-
-Scaffolds a new DataBook from data files, a spec, and optional metadata.
-
-```bash
-databook create [data-file...] [options]
-```
-
-| Option | Description |
-| --- | --- |
-| `-C <yaml-file>` | Frontmatter configuration YAML |
-| `--id <iri>` | Document identity IRI |
-| `--title <string>` | Document title |
-| `--type <type>` | Document type: `databook`, `transformer-library`, `processor-registry` |
-| `--output <path>` | Write to file instead of stdout |
-
-**Example:**
-
-```bash
-databook create graph.ttl shapes.shacl -C project.yaml --output myfile.databook.md
-```
-
----
-
-## processors.toml Configuration
-
-The `processors.toml` file at the implementation root configures default endpoints and credentials:
+Example:
 
 ```toml
 [default_endpoint]
 sparql = "http://localhost:3030/ds/sparql"
-gsp    = "http://localhost:3030/ds/data"
 
-[llm]
-provider = "anthropic"
-model    = "claude-sonnet-4-6"
-# api_key = set ANTHROPIC_API_KEY environment variable instead
+[endpoints."http://localhost:3030"]
+auth = "Basic YWRtaW46cGFzc3dvcmQ="
 
-[auth]
-# bearer_token = "..."   # set per-endpoint if needed
+[processor."https://w3id.org/databook/plugins/core#jena-sparql"]
+command   = "/usr/local/jena/bin/sparql"
+version   = "6.0.0"
+jvm_flags = "-Xmx4g"
+
+[processor."https://w3id.org/databook/plugins/core#jena-shacl"]
+command   = "/usr/local/jena/bin/shacl"
+version   = "6.0.0"
+jvm_flags = "-Xmx4g"
+
+[processor."https://w3id.org/databook/plugins/core#saxon-xslt"]
+jar       = "/usr/local/lib/saxon-he-12.jar"
+version   = "12.0"
+jvm_flags = "-Xmx2g"
+```
+
+See `processors.default.toml` for the full schema with all supported keys.
+
+### Authentication
+
+The auth credential is resolved in priority order:
+
+1. `--auth <credential>` flag
+2. `DATABOOK_FUSEKI_AUTH` environment variable
+3. `processors.toml` `[endpoints."<url>"]` `.auth` or `.auth_env`
+
+Credential forms: `Basic <base64>`, `Bearer <token>`, or bare `<base64>` (auto-prefixed with `Basic`).
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Runtime error (partial failure, processor error) |
+| `2` | Usage / configuration error (bad args, missing flags) |
+| `3` | Authentication failure (401 / 403) |
+| `4` | Endpoint unreachable (connection refused, DNS failure) |
+| `5` | Empty result — query succeeded but returned no triples/rows |
+
+---
+
+## POSIX Pipeline Compatibility
+
+All commands are POSIX-composable:
+
+```bash
+# Inspect output of a process pipeline
+databook process source.databook.md -P pipeline.databook.md \
+  | databook head --format json
+
+# Round-trip: push, transform in store, pull back
+databook push sensors.databook.md --endpoint http://host/ds/sparql
+# ... external store transformations ...
+databook pull sensors.databook.md \
+  --endpoint http://host/ds/sparql \
+  --fragment sensor-construct \
+  --block-id sensor-graph \
+  --stats \
+  --out sensors.databook.md
 ```
 
 ---
 
-## Test Fixtures
+## Fragment Addressing
 
-All test fixtures live in `test/`. See `test/TESTS.md` for the complete test guide.
+Any payload reference uses the form `{document}#{block-id}`:
 
-| File | Purpose |
-| --- | --- |
-| `test/knowledge-graph.databook.md` | Primary fixture — full block variety (replaces `observatory.databook.md`) |
-| `test/pre-v1.databook.md` | v1.0 `<script>` form backwards-compatibility test |
-| `test/queries.databook.md` | Named SPARQL query library (fragment-ref pull tests) |
-| `test/shapes.databook.md` | Standalone SHACL shapes (DESCRIBE tests) |
-| `test/pipeline.databook.md` | 2-stage manifest (process command tests) |
-| `test/external-query.sparql` | External SPARQL file for `--query` mode |
-| `test/params-type.json` | JSON params for VALUES injection |
-| `test/params-by-status.yaml` | YAML params for VALUES injection |
+```bash
+# Relative path
+--sparql queries.databook.md#construct-graph
+
+# Absolute path
+--sparql /data/queries.databook.md#construct-graph
+
+# Current document (same-document fragment)
+--fragment sensor-construct
+
+# Full IRI
+--sparql https://example.org/queries-v1#select-all
+```
 
 ---
 
-## Contributing
+## Dependencies
 
-The DataBook CLI is the reference implementation of the DataBook format. For bug reports and feature requests, open an issue at `https://github.com/kurtcagle/databook`. For format specification changes, see `SPEC.md`.
+| Package | Role |
+|---|---|
+| `commander` | CLI argument parsing |
+| `js-yaml` | YAML frontmatter parsing |
+| `@iarna/toml` | `processors.toml` parsing |
+| `n3` | Turtle parsing for stats; process DataBook catalogue parsing |
 
-**Authors:** Kurt Cagle, Chloe Shannon  
-**Licence:** CC-BY-4.0
+Requires **Node.js ≥ 18** for native `fetch`.
+
+---
+
+## DataBook Spec References
+
+- [Conventions](https://w3id.org/databook/specs/cli-conventions-v1) — stdin/stdout, fragment addressing, `processors.toml`, exit codes
+- [head spec](https://w3id.org/databook/specs/cli-head-v1)
+- [push spec](https://w3id.org/databook/specs/cli-push)
+- [pull spec](https://w3id.org/databook/specs/cli-pull)
+- [process spec](https://w3id.org/databook/specs/cli-process-v1)

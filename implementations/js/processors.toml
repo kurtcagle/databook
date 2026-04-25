@@ -1,0 +1,83 @@
+# DataBook CLI — processors.default.toml
+# Template file. Copy to ~/.config/databook/processors.toml or
+# .databook/processors.toml and fill in your deployment details.
+# Do NOT commit your local processors.toml to version control.
+
+# ── Default endpoint ──────────────────────────────────────────────────────────
+# Used when --endpoint is not specified on the command line.
+
+[default_endpoint]
+sparql    = "http://localhost:3030/ds/sparql"
+# inference = "http://localhost:3030/ds/query"   # optional: inference-enabled endpoint
+
+# ── Per-endpoint auth ─────────────────────────────────────────────────────────
+# Entries are matched by prefix against the endpoint URL.
+# auth     = literal credential (Basic/Bearer header value or bare base64)
+# auth_env = name of environment variable holding the credential
+
+[endpoints."http://localhost:3030"]
+auth = ""  # e.g. "Basic YWRtaW46cGFzc3dvcmQ="
+
+# [endpoints."https://prod.example.org/sparql"]
+# auth_env  = "PROD_SPARQL_AUTH"
+# inference = "https://prod.example.org/query"
+
+# ── Processor declarations ────────────────────────────────────────────────────
+# Keys are the canonical processor IRIs used in process DataBook declarations.
+
+[processor."https://w3id.org/databook/plugins/core#jena-sparql"]
+command   = "C:/Apache/apache-jena-6.0.0/bat/sparql"
+version   = "6.0.0"
+jvm_flags = "-Xmx4g"
+
+[processor."https://w3id.org/databook/plugins/core#jena-shacl"]
+command   = "C:/Apache/apache-jena-6.0.0/bat/shacl"
+version   = "6.0.0"
+jvm_flags = "-Xmx4g"
+
+[processor."https://w3id.org/databook/plugins/core#jena-riot"]
+command   = "C:/Apache/apache-jena-6.0.0/bat/riot"
+version   = "6.0.0"
+
+[processor."https://w3id.org/databook/plugins/core#saxon-xslt"]
+jar       = "/usr/local/lib/saxon-he-12.jar"
+version   = "12.0"
+jvm_flags = "-Xmx2g"
+
+[processor."https://w3id.org/databook/plugins/core#saxon-xquery"]
+jar       = "/usr/local/lib/saxon-he-12.jar"
+version   = "12.0"
+jvm_flags = "-Xmx2g"
+
+# SPARQL Anything — embedded mode (spawns subprocess)
+[processor."https://w3id.org/databook/plugins/core#sparql-anything"]
+mode      = "embedded"
+jar       = "/usr/local/lib/sparql-anything-0.9.jar"
+port      = 3456
+version   = "0.9.0"
+jvm_flags = "-Xmx4g"
+
+# SPARQL Anything — endpoint mode (use instead of embedded)
+# [processor."https://w3id.org/databook/plugins/core#sparql-anything"]
+# mode     = "endpoint"
+# endpoint = "http://localhost:3456/sparql.anything"
+# version  = "0.9.0"
+
+# ── DataBook registry ─────────────────────────────────────────────────────────
+# Aliases for frequently-used remote DataBooks.
+# Referenced via @alias or @alias#block-id in fetch, pull --query-ref,
+# process --shapes, and process --sparql.
+
+[databook_registry]
+# Examples — fill in your own:
+# cli-conventions = "https://w3id.org/databook/specs/cli-conventions"
+# my-shapes       = "https://example.org/databooks/my-shapes-v1"
+
+# Optional cache directory for fetched DataBooks (relative to CWD or absolute)
+# cache_dir = ".databook-cache"
+
+# Optional TTL for cached DataBooks in hours (omit to cache indefinitely)
+# cache_ttl_hours = 24
+
+# Optional request timeout in milliseconds (default: 30000)
+# fetch_timeout_ms = 30000

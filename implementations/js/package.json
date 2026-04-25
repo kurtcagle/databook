@@ -1,7 +1,7 @@
 {
-  "name": "databook",
-  "version": "1.1.0",
-  "description": "DataBook CLI — reference implementation for the DataBook semantic document format",
+  "name": "databook-cli",
+  "version": "1.0.0",
+  "description": "DataBook CLI — inspect, push, pull, and process DataBook semantic documents",
   "type": "module",
   "bin": {
     "databook": "./bin/databook.js"
@@ -25,13 +25,7 @@
     "semantic-web",
     "cli",
     "sparql",
-    "shacl",
-    "knowledge-graph"
+    "shacl"
   ],
-  "license": "CC-BY-4.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kurtcagle/databook"
-  },
-  "homepage": "https://github.com/kurtcagle/databook#readme"
+  "license": "CC-BY-4.0"
 }
