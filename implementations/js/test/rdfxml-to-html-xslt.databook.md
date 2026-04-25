@@ -25,8 +25,13 @@ subject:
 description: >
   A transformer-library DataBook carrying the rdfxml-to-html XSLT 1.0 stylesheet.
   Transforms an RDF/XML document into a human-readable HTML vocabulary report,
+<<<<<<< HEAD
+  listing ontology metadata, classes with hierarchy, and properties with domain
+  and range. Designed as the companion stylesheet for rdfxml-example.databook.md.
+=======
   listing ontology metadata, OWL classes with hierarchy, and OWL properties with
   domain and range. Designed as the companion stylesheet for test-rdfxml.databook.md.
+>>>>>>> 91ce5a2687d025ed65532e91228f9f3661caa9ee
   Compatible with xsltproc (libxslt) and Saxon HE/PE/EE 9.x+.
 
 process:
@@ -37,9 +42,15 @@ process:
     - iri: urn:input:rdfxml-to-html-xslt-source
       role: primary
       description: "Hand-authored XSLT 1.0 stylesheet for RDF/XML → HTML transformation"
+<<<<<<< HEAD
+    - iri: https://w3id.org/databook/test/rdfxml-colour-v1
+      role: context
+      description: "Companion RDF/XML DataBook this stylesheet is designed to transform"
+=======
     - iri: https://w3id.org/databook/test/rdfxml-hga-vocab-v1
       role: context
       description: "Target DataBook this stylesheet is designed to transform"
+>>>>>>> 91ce5a2687d025ed65532e91228f9f3661caa9ee
   timestamp: 2026-04-23T13:30:00Z
   agent:
     name: Chloe Shannon
