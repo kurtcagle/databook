@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/databook/schema/frontmatter-v1.json",
+  "title": "DataBook Frontmatter",
+  "description": "JSON Schema for DataBook YAML frontmatter (v1.1). Validates the structured metadata block at the start of a .databook.md file.",
+  "type": "object",
+  "required": ["id", "title", "type", "version", "created"],
+  "additionalProperties": true,
+
+  "properties": {
+
+    "id": {
+      "type": "string",
+      "format": "uri",
+      "description": "Stable identity IRI for this DataBook. Must be globally unique."
+    },
+
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable title."
+    },
+
+    "type": {
+      "type": "string",
+      "enum": ["databook", "transformer-library", "processor-registry"],
+      "description": "DataBook document type."
+    },
+
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Semantic version string (MAJOR.MINOR.PATCH)."
+    },
+
+    "created": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Creation date in YYYY-MM-DD format."
+    },
+
+    "author": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Author"
+      },
+      "description": "One or more author objects."
+    },
+
+    "license": {
+      "type": "string",
+      "description": "SPDX identifier (e.g., CC-BY-4.0) or full IRI pointing to the license document."
+    },
+
+    "domain": {
+      "type": "string",
+      "format": "uri",
+      "description": "Primary ontology or vocabulary namespace this DataBook operates within."
+    },
+
+    "subject": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-text subject tags for discovery."
+    },
+
+    "description": {
+      "type": "string",
+      "description": "Short abstract suitable for catalogue display."
+    },
+
+    "graph": {
+      "$ref": "#/$defs/GraphMetadata",
+      "description": "Graph metadata. Recommended when the DataBook contains RDF graph data."
+    },
+
+    "shapes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "SHACL NodeShape IRIs that the data in this DataBook is expected to satisfy."
+    },
+
+    "process": {
+      "$ref": "#/$defs/ProcessStamp",
+      "description": "Process stamp. Required when data was produced by any transformer."
+    },
+
+    "encryption": {
+      "$ref": "#/$defs/EncryptionManifest",
+      "description": "Encryption manifest. Required when any block uses the encryption profile."
+    }
+  },
+
+  "$defs": {
+
+    "Author": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name":  { "type": "string", "description": "Full name." },
+        "iri":   { "type": "string", "format": "uri", "description": "Stable IRI for this person." },
+        "role":  {
+          "type": "string",
+          "enum": ["orchestrator", "transformer", "reviewer", "editor", "contributor"],
+          "description": "Role in producing this DataBook."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "GraphMetadata": {
+      "type": "object",
+      "properties": {
+        "namespace":      { "type": "string", "format": "uri" },
+        "named_graph":    { "type": "string", "format": "uri" },
+        "triple_count":   { "type": "integer", "minimum": 0 },
+        "subjects":       { "type": "integer", "minimum": 0 },
+        "rdf_version":    { "type": "string", "enum": ["1.1", "1.2"] },
+        "turtle_version": { "type": "string", "enum": ["1.1", "1.2"] },
+        "reification":    { "type": "boolean" },
+        "validator_note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "ProcessStamp": {
+      "type": "object",
+      "required": ["transformer", "transformer_type", "inputs"],
+      "properties": {
+        "transformer": {
+          "type": "string",
+          "description": "Human-readable name or label for the transformer."
+        },
+        "transformer_type": {
+          "type": "string",
+          "enum": [
+            "llm", "xslt", "sparql", "shacl", "service",
+            "human", "composite", "script",
+            "library-transform", "registry-processor"
+          ],
+          "description": "Controlled vocabulary transformer type."
+        },
+        "transformer_iri": {
+          "type": "string",
+          "format": "uri",
+          "description": "Stable IRI identifying the specific transformer instance."
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProcessInput" },
+          "description": "Sequence of input records."
+        },
+        "output_format": {
+          "type": "string",
+          "description": "Fence-label vocabulary value for the output format (e.g., 'turtle', 'shacl')."
+        },
+        "output_media_type": {
+          "type": "string",
+          "description": "MIME type of the output for precision when fence label is ambiguous."
+        },
+        "output": {
+          "$ref": "#/$defs/OutputDestination"
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/OutputDestination" }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 datetime when the transformation was run."
+        },
+        "agent": { "$ref": "#/$defs/Agent" },
+        "note":  { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+
+    "ProcessInput": {
+      "type": "object",
+      "required": ["iri"],
+      "properties": {
+        "iri": {
+          "type": "string",
+          "description": "IRI of the input DataBook, graph, or resource."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["primary", "constraint", "context", "evidence", "reference", "template"],
+          "description": "The role this input played in the transformation."
+        },
+        "block_id": {
+          "type": "string",
+          "description": "databook:id of the block within the current DataBook this input corresponds to."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this input."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "OutputDestination": {
+      "type": "object",
+      "properties": {
+        "graph": { "type": "string", "format": "uri" },
+        "url":   { "type": "string", "format": "uri" },
+        "file":  { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "Agent": {
+      "type": "object",
+      "required": ["name", "role"],
+      "properties": {
+        "name": { "type": "string" },
+        "iri":  { "type": "string", "format": "uri" },
+        "role": {
+          "type": "string",
+          "enum": ["orchestrator", "transformer", "reviewer", "editor", "contributor"]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "EncryptionManifest": {
+      "type": "object",
+      "required": ["profile", "key_id", "scope"],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "description": "Encryption profile identifier (e.g., 'rsa-oaep-256-aes-gcm')."
+        },
+        "key_id": {
+          "type": "string",
+          "format": "uri",
+          "description": "IRI of the encryption key."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["full", "selective", "none"]
+        },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EncryptedBlockEntry" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "EncryptedBlockEntry": {
+      "type": "object",
+      "required": ["block_id", "encrypted_media_type", "iv", "auth_tag", "encrypted_key"],
+      "properties": {
+        "block_id":             { "type": "string" },
+        "encrypted_media_type": { "type": "string" },
+        "iv":                   { "type": "string" },
+        "auth_tag":             { "type": "string" },
+        "encrypted_key":        { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

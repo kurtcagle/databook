@@ -1,0 +1,205 @@
+@prefix build: <https://w3id.org/databook/ns#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+
+# ── Ontology declaration ───────────────────────────────────────────────────────
+
+<https://w3id.org/databook/ns#> a owl:Ontology ;
+    dct:title      "DataBook Build Vocabulary"@en ;
+    dct:description
+        "RDF vocabulary for describing DataBook documents, pipeline stages, "
+        "named transforms, processor registries, and build dependencies."@en ;
+    dct:created    "2026-04-25"^^xsd:date ;
+    dct:creator    <https://holongraph.com/people/kurt-cagle> ;
+    owl:versionIRI <https://w3id.org/databook/ns/1.1#> ;
+    rdfs:seeAlso   <https://github.com/kurtcagle/databook/blob/main/SPEC.md> .
+
+# ── Document classes ───────────────────────────────────────────────────────────
+
+build:DataBook a owl:Class ;
+    rdfs:label   "DataBook"@en ;
+    rdfs:comment "A DataBook document: Markdown file with typed fenced blocks and YAML frontmatter."@en .
+
+build:Block a owl:Class ;
+    rdfs:label   "Block"@en ;
+    rdfs:comment "A typed fenced code block within a DataBook."@en .
+
+# ── Pipeline classes ───────────────────────────────────────────────────────────
+
+build:Manifest a owl:Class ;
+    rdfs:label   "Manifest"@en ;
+    rdfs:comment "A DataBook whose primary block is a pipeline dependency graph."@en ;
+    rdfs:subClassOf build:DataBook .
+
+build:Target a owl:Class ;
+    rdfs:label   "Target"@en ;
+    rdfs:comment "A DataBook that is the intended final output of a pipeline."@en .
+
+build:Stage a owl:Class ;
+    rdfs:label   "Stage"@en ;
+    rdfs:comment "An intermediate DataBook produced during a pipeline run."@en .
+
+build:Source a owl:Class ;
+    rdfs:label   "Source"@en ;
+    rdfs:comment "A DataBook that is a raw pipeline input with no DataBook-format dependencies."@en .
+
+# ── Library and registry classes ───────────────────────────────────────────────
+
+build:NamedTransform a owl:Class ;
+    rdfs:label   "NamedTransform"@en ;
+    rdfs:comment "A named, reusable transformer entry in a transformer-library DataBook."@en .
+
+build:Processor a owl:Class ;
+    rdfs:label   "Processor"@en ;
+    rdfs:comment "A named processing service entry in a processor-registry DataBook."@en .
+
+# ── Status individuals ─────────────────────────────────────────────────────────
+
+build:Active a owl:NamedIndividual ;
+    rdfs:label "Active"@en ;
+    rdfs:comment "The processor or transform is available and in active use."@en .
+
+build:Inactive a owl:NamedIndividual ;
+    rdfs:label "Inactive"@en ;
+    rdfs:comment "The processor or transform exists but is not currently available."@en .
+
+build:Deprecated a owl:NamedIndividual ;
+    rdfs:label "Deprecated"@en ;
+    rdfs:comment "The processor or transform is deprecated and should not be used in new pipelines."@en .
+
+# ── Document properties ────────────────────────────────────────────────────────
+
+build:hasBlock a owl:ObjectProperty ;
+    rdfs:label   "hasBlock"@en ;
+    rdfs:domain  build:DataBook ;
+    rdfs:range   build:Block ;
+    rdfs:comment "Links a DataBook to a fenced data block it contains."@en .
+
+build:blockLabel a owl:DatatypeProperty ;
+    rdfs:label   "blockLabel"@en ;
+    rdfs:domain  build:Block ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The fence label of a block (e.g., 'turtle', 'sparql', 'shacl')."@en .
+
+build:blockId a owl:DatatypeProperty ;
+    rdfs:label   "blockId"@en ;
+    rdfs:domain  build:Block ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The databook:id value of a block; enables fragment addressing."@en .
+
+build:lineCount a owl:DatatypeProperty ;
+    rdfs:label   "lineCount"@en ;
+    rdfs:domain  build:Block ;
+    rdfs:range   xsd:integer ;
+    rdfs:comment "Number of non-comment lines in the block payload."@en .
+
+build:commentCount a owl:DatatypeProperty ;
+    rdfs:label   "commentCount"@en ;
+    rdfs:domain  build:Block ;
+    rdfs:range   xsd:integer ;
+    rdfs:comment "Number of databook: comment metadata lines in the block header."@en .
+
+build:displayOnly a owl:DatatypeProperty ;
+    rdfs:label   "displayOnly"@en ;
+    rdfs:domain  build:Block ;
+    rdfs:range   xsd:boolean ;
+    rdfs:comment "True if the block uses a label not in the DataBook type vocabulary and is treated as a display code block."@en .
+
+# ── Pipeline properties ────────────────────────────────────────────────────────
+
+build:dependsOn a owl:ObjectProperty ;
+    rdfs:label   "dependsOn"@en ;
+    rdfs:comment "Links a Target or Stage to its input DataBook IRIs."@en .
+
+build:produces a owl:ObjectProperty ;
+    rdfs:label   "produces"@en ;
+    rdfs:comment "Links a Stage to its output DataBook IRI."@en .
+
+build:transformer a owl:DatatypeProperty ;
+    rdfs:label   "transformer"@en ;
+    rdfs:domain  build:Stage ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The transformer type string for this pipeline stage (e.g., 'sparql', 'llm', 'xslt')."@en .
+
+build:outputType a owl:DatatypeProperty ;
+    rdfs:label   "outputType"@en ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The expected fence-label type of a Stage or Target output. Enables type-compatibility validation."@en .
+
+build:inputType a owl:DatatypeProperty ;
+    rdfs:label   "inputType"@en ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The expected fence-label type of a Stage's input."@en .
+
+build:order a owl:DatatypeProperty ;
+    rdfs:label   "order"@en ;
+    rdfs:range   xsd:integer ;
+    rdfs:comment "Tiebreaker ordering hint within the same topological layer of a DAG execution. Higher integer executes later within a layer. The primary execution order is determined by topological sort of build:dependsOn edges."@en .
+
+build:payloadRef a owl:DatatypeProperty ;
+    rdfs:label   "payloadRef"@en ;
+    rdfs:range   xsd:anyURI ;
+    rdfs:comment "Fragment IRI of a DataBook block to use as the payload for this stage."@en .
+
+build:shapesRef a owl:DatatypeProperty ;
+    rdfs:label   "shapesRef"@en ;
+    rdfs:range   xsd:anyURI ;
+    rdfs:comment "Fragment IRI of a SHACL shapes block to use for validation in this stage."@en .
+
+build:paramsRef a owl:DatatypeProperty ;
+    rdfs:label   "paramsRef"@en ;
+    rdfs:range   xsd:anyURI ;
+    rdfs:comment "Fragment IRI of a JSON or YAML parameters block for VALUES injection."@en .
+
+build:interpolate a owl:DatatypeProperty ;
+    rdfs:label   "interpolate"@en ;
+    rdfs:range   xsd:boolean ;
+    rdfs:comment "If true, enable {{variable}} template interpolation in payload blocks before execution."@en .
+
+# ── Library properties ─────────────────────────────────────────────────────────
+
+build:transformerType a owl:DatatypeProperty ;
+    rdfs:label   "transformerType"@en ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The transformer type string for a NamedTransform (e.g., 'sparql', 'xslt', 'llm')."@en .
+
+# ── Registry properties ────────────────────────────────────────────────────────
+
+build:processorType a owl:DatatypeProperty ;
+    rdfs:label   "processorType"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The transformer type string for a registered Processor."@en .
+
+build:serviceIRI a owl:ObjectProperty ;
+    rdfs:label   "serviceIRI"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:comment "The IRI of the processor's service endpoint or homepage."@en .
+
+build:rdfVersion a owl:DatatypeProperty ;
+    rdfs:label   "rdfVersion"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The RDF version supported by this processor (for graph stores). Expected values: '1.1' or '1.2'."@en .
+
+build:modelVersion a owl:DatatypeProperty ;
+    rdfs:label   "modelVersion"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "The model version string for LLM processors."@en .
+
+build:status a owl:ObjectProperty ;
+    rdfs:label   "status"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:range   owl:NamedIndividual ;
+    rdfs:comment "Current availability status. Expected values: build:Active, build:Inactive, build:Deprecated."@en .
+
+build:capabilityNote a owl:DatatypeProperty ;
+    rdfs:label   "capabilityNote"@en ;
+    rdfs:domain  build:Processor ;
+    rdfs:range   xsd:string ;
+    rdfs:comment "Free-text note about processor capabilities, limitations, or access requirements."@en .

@@ -1,0 +1,14 @@
+PREFIX proj: <https://w3id.org/databook/test/project-v1#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX dct:  <http://purl.org/dc/terms/>
+
+SELECT ?task ?taskLabel ?assignee ?assigneeLabel ?project ?projectLabel WHERE {
+    ?task a proj:Task ;
+          rdfs:label ?taskLabel ;
+          proj:assignedTo ?assignee ;
+          proj:inProject ?project .
+    ?assignee rdfs:label ?assigneeLabel .
+    ?project rdfs:label ?projectLabel .
+}
+ORDER BY ?projectLabel ?taskLabel

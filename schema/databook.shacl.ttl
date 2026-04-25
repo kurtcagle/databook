@@ -1,0 +1,212 @@
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix build: <https://w3id.org/databook/ns#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix ex:    <https://w3id.org/databook/shapes/> .
+
+# ── DataBook shapes ────────────────────────────────────────────────────────────
+#
+# These shapes validate the RDF output produced by `databook head --format turtle`.
+# The head command serialises a DataBook's frontmatter and block inventory as RDF
+# using the build: vocabulary. Shapes here confirm the output is well-formed.
+#
+# To validate: load the head output Turtle and these shapes into Jena Fuseki 6.0,
+# then run SHACL validation against the build:DataBook subject.
+
+ex:DataBookShape a sh:NodeShape ;
+    sh:targetClass build:DataBook ;
+    rdfs:label "DataBook shape"@en ;
+    rdfs:comment "Validates the RDF representation of a DataBook document."@en ;
+
+    sh:property [
+        sh:path dct:identifier ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "DataBook must have a dct:identifier (the document IRI)."@en ;
+    ] ;
+
+    sh:property [
+        sh:path dct:title ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "DataBook must have a dct:title."@en ;
+    ] ;
+
+    sh:property [
+        sh:path dct:type ;
+        sh:minCount 1 ;
+        sh:in ( "databook" "transformer-library" "processor-registry" ) ;
+        sh:message "DataBook type must be one of: databook, transformer-library, processor-registry."@en ;
+    ] ;
+
+    sh:property [
+        sh:path dct:hasVersion ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*).*$" ;
+        sh:message "DataBook version must be a semver string (MAJOR.MINOR.PATCH)."@en ;
+    ] ;
+
+    sh:property [
+        sh:path dct:created ;
+        sh:minCount 1 ;
+        sh:datatype xsd:date ;
+        sh:message "DataBook must have a dct:created date."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:hasBlock ;
+        sh:minCount 1 ;
+        sh:class build:Block ;
+        sh:message "DataBook must contain at least one block."@en ;
+    ] .
+
+# ── Block shapes ───────────────────────────────────────────────────────────────
+
+ex:BlockShape a sh:NodeShape ;
+    sh:targetClass build:Block ;
+    rdfs:label "Block shape"@en ;
+    rdfs:comment "Validates a fenced data block entry in a DataBook head Turtle output."@en ;
+
+    sh:property [
+        sh:path build:blockId ;
+        sh:minCount 0 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[a-z][a-z0-9-]*$" ;
+        sh:message "Block ID must be kebab-case when present."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:blockLabel ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Block must have exactly one fence label."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:lineCount ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
+        sh:message "Block line count must be a non-negative integer when present."@en ;
+    ] .
+
+# ── NamedTransform shapes ──────────────────────────────────────────────────────
+
+ex:NamedTransformShape a sh:NodeShape ;
+    sh:targetClass build:NamedTransform ;
+    rdfs:label "NamedTransform shape"@en ;
+
+    sh:property [
+        sh:path dct:title ;
+        sh:minCount 1 ;
+        sh:message "NamedTransform must have a dct:title."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:transformerType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ( "llm" "xslt" "sparql" "shacl" "service" "human" "composite" "script"
+                "library-transform" "registry-processor" ) ;
+        sh:message "NamedTransform transformerType must be a recognised transformer type."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:outputType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "NamedTransform must declare an outputType."@en ;
+    ] .
+
+# ── Processor shapes ───────────────────────────────────────────────────────────
+
+ex:ProcessorShape a sh:NodeShape ;
+    sh:targetClass build:Processor ;
+    rdfs:label "Processor shape"@en ;
+
+    sh:property [
+        sh:path dct:title ;
+        sh:minCount 1 ;
+        sh:message "Processor must have a dct:title."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:processorType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ( "llm" "xslt" "sparql" "shacl" "service" "human" "composite" "script" ) ;
+        sh:message "Processor processorType must be a recognised type."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:serviceIRI ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "Processor must have exactly one serviceIRI."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:status ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ( build:Active build:Inactive build:Deprecated ) ;
+        sh:message "Processor status must be build:Active, build:Inactive, or build:Deprecated."@en ;
+    ] .
+
+# ── Pipeline stage shapes ──────────────────────────────────────────────────────
+
+ex:StageShape a sh:NodeShape ;
+    sh:targetClass build:Stage ;
+    rdfs:label "Stage shape"@en ;
+
+    sh:property [
+        sh:path build:transformer ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Stage must declare a transformer type."@en ;
+    ] ;
+
+    sh:property [
+        sh:path build:outputType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Stage should declare an outputType for pipeline type-compatibility checking."@en ;
+        sh:severity sh:Warning ;
+    ] ;
+
+    sh:property [
+        sh:path build:dependsOn ;
+        sh:minCount 1 ;
+        sh:message "Stage should declare at least one build:dependsOn input."@en ;
+        sh:severity sh:Warning ;
+    ] .
+
+ex:TargetShape a sh:NodeShape ;
+    sh:targetClass build:Target ;
+    rdfs:label "Target shape"@en ;
+
+    sh:property [
+        sh:path build:outputType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Target should declare an outputType."@en ;
+        sh:severity sh:Warning ;
+    ] ;
+
+    sh:property [
+        sh:path build:dependsOn ;
+        sh:minCount 1 ;
+        sh:message "Target must declare at least one build:dependsOn input."@en ;
+    ] .
