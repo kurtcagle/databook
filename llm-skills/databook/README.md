@@ -17,7 +17,7 @@ Skill files follow a lightweight convention: YAML frontmatter identifying the sk
 ## File
 
 ```
-llm-skills/databook/SKILL.md
+[llm-skills/databook/SKILL.md](SKILL.md]
 ```
 
 ## How to Use It
