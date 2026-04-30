@@ -1,0 +1,11 @@
+# YAML parameter file for databook process --params testing
+# Injects a sosa:Sensor type value into the <<db:inject>> marker
+# in the typed-select query block.
+#
+# Usage:
+#   databook process observatory.databook.md \
+#     --sparql observatory.databook.md#typed-select \
+#     --params test/params-by-type.yaml \
+#     --dry-run
+
+type: "sosa:Sensor"

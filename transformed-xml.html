@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Holonic Graph Architecture Vocabulary</title>
+<style>
+          /* ---- Reset and base ---- */
+          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            background: #f7f8fa;
+            color: #1a1a2e;
+            padding: 2rem 1rem;
+          }
+          /* ---- Layout ---- */
+          .page { max-width: 860px; margin: 0 auto; }
+          /* ---- Ontology header ---- */
+          .onto-header {
+            background: #1a1a2e;
+            color: #e8eaf6;
+            border-radius: 8px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+          }
+          .onto-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; }
+          .onto-header .onto-meta { font-size: 0.85rem; opacity: 0.75; margin-top: 0.25rem; }
+          .onto-header .onto-iri {
+            font-family: "Fira Mono", "Consolas", monospace;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 0.5rem;
+          }
+          .onto-header .onto-desc {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            opacity: 0.88;
+          }
+          /* ---- Section headings ---- */
+          .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            border-left: 4px solid #5c6bc0;
+            padding-left: 0.75rem;
+            margin: 2rem 0 1rem;
+          }
+          /* ---- Cards ---- */
+          .card {
+            background: #fff;
+            border: 1px solid #e0e3ef;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+          }
+          .card-header {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            margin-bottom: 0.4rem;
+          }
+          .card-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #1a1a2e;
+          }
+          .card-iri {
+            font-family: "Fira Mono", "Consolas", monospace;
+            font-size: 0.75rem;
+            color: #5c6bc0;
+            word-break: break-all;
+          }
+          .card-comment { font-size: 0.875rem; color: #444; margin-bottom: 0.5rem; }
+          /* ---- Metadata rows inside cards ---- */
+          .meta-row {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
+          }
+          .meta-key {
+            font-weight: 600;
+            color: #888;
+            white-space: nowrap;
+            min-width: 5.5rem;
+          }
+          .meta-val {
+            font-family: "Fira Mono", "Consolas", monospace;
+            color: #333;
+            word-break: break-all;
+          }
+          /* ---- Hierarchy indent pill ---- */
+          .subclass-of {
+            display: inline-block;
+            background: #e8eaf6;
+            color: #3949ab;
+            font-size: 0.72rem;
+            font-family: "Fira Mono", "Consolas", monospace;
+            border-radius: 3px;
+            padding: 0.1rem 0.4rem;
+            margin-left: 0.25rem;
+          }
+          /* ---- Stats bar ---- */
+          .stats {
+            background: #e8eaf6;
+            border-radius: 6px;
+            padding: 0.6rem 1rem;
+            font-size: 0.82rem;
+            color: #3949ab;
+            margin-bottom: 1.5rem;
+          }
+          .stats strong { font-weight: 700; }
+          /* ---- Footer ---- */
+          footer {
+            margin-top: 2.5rem;
+            font-size: 0.78rem;
+            color: #aaa;
+            text-align: center;
+          }
+        </style>
+</head>
+<body><div class="page">
+<div class="onto-header">
+<h1>Holonic Graph Architecture Vocabulary</h1>
+<div class="onto-iri">https://w3id.org/holon/ns#</div>
+<div class="onto-meta">Created: 2026-04-23</div>
+<div class="onto-meta">Version IRI:
+          https://w3id.org/holon/ns/1.0.0</div>
+<div class="onto-desc">Core vocabulary for the four-layer HGA model: Scene, Boundary, Event, and Projection graphs.</div>
+</div>
+<div class="stats">
+<strong>5</strong> classes ·
+            <strong>2</strong> properties
+            (2 object,
+             0 datatype)
+          </div>
+<div class="section-title">Classes</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">BoundaryGraph</span><span class="card-iri">https://w3id.org/holon/ns#BoundaryGraph</span>
+</div>↳ <span class="subclass-of">HolonGraph</span><br><div class="card-comment">The Markov blanket layer. Encodes constraints, policies, and SHACL shapes that mediate all interactions between the holon's interior and the outside world.</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">EventGraph</span><span class="card-iri">https://w3id.org/holon/ns#EventGraph</span>
+</div>↳ <span class="subclass-of">HolonGraph</span><br><div class="card-comment">The temporal layer. Captures state transitions, temporal ordering, causality, and provenance across the holon's lifecycle.</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">HolonGraph</span><span class="card-iri">https://w3id.org/holon/ns#HolonGraph</span>
+</div>
+<div class="card-comment">The abstract base class for all graph layers in a holonic architecture. A HolonGraph is simultaneously an autonomous whole and a part of a larger graph holarchy.</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">ProjectionGraph</span><span class="card-iri">https://w3id.org/holon/ns#ProjectionGraph</span>
+</div>↳ <span class="subclass-of">HolonGraph</span><br><div class="card-comment">The derived-view layer. Computes agent- or context-specific projections from the primary domain graph, analogous to a database view.</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">SceneGraph</span><span class="card-iri">https://w3id.org/holon/ns#SceneGraph</span>
+</div>↳ <span class="subclass-of">HolonGraph</span><br><div class="card-comment">The observable projection layer. Represents holonic state as perceived by an external agent — the rendered surface of the holon.</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="section-title">Object Properties</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">containsHolon</span><span class="card-iri">https://w3id.org/holon/ns#containsHolon</span>
+</div>
+<div class="card-comment">Relates a parent holon to a child holon it encloses. Encodes the part-whole relationship that defines a holarchy.</div>
+<div class="meta-row">
+<span class="meta-key">domain</span><span class="meta-val">HolonGraph <span style="opacity:0.55">
+              (https://w3id.org/holon/ns#HolonGraph)
+            </span></span>
+</div>
+<div class="meta-row">
+<span class="meta-key">range</span><span class="meta-val">HolonGraph <span style="opacity:0.55">
+              (https://w3id.org/holon/ns#HolonGraph)
+            </span></span>
+</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="card-name">projectsFrom</span><span class="card-iri">https://w3id.org/holon/ns#projectsFrom</span>
+</div>
+<div class="card-comment">Links a ProjectionGraph to the source HolonGraph from which it derives its view. Analogous to a SQL view's SELECT … FROM clause.</div>
+<div class="meta-row">
+<span class="meta-key">domain</span><span class="meta-val">ProjectionGraph <span style="opacity:0.55">
+              (https://w3id.org/holon/ns#ProjectionGraph)
+            </span></span>
+</div>
+<div class="meta-row">
+<span class="meta-key">range</span><span class="meta-val">HolonGraph <span style="opacity:0.55">
+              (https://w3id.org/holon/ns#HolonGraph)
+            </span></span>
+</div>
+<div class="meta-row">
+<span class="meta-key">defined by</span><span class="meta-val">https://w3id.org/holon/ns#</span>
+</div>
+</div>
+<footer>
+            Generated by rdfxml-to-html ·
+            2026-04-23</footer>
+</div></body>
+</html>
