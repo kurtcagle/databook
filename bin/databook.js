@@ -22,6 +22,7 @@ import { runSparqlUpdate }  from '../commands/sparql-update.js';
 import { runValidate }      from '../commands/validate.js';
 import { runDescribe }      from '../commands/describe.js';
 import { runIngest }        from '../commands/ingest.js';
+import { runShacl2Sparql }        from '../commands/shacl2sparql.js';
 
 program
   .name('databook')
@@ -438,6 +439,55 @@ program
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function collect(val, acc) { acc.push(val); return acc; }
 
+
+// ─── databook shacl2sparql ────────────────────────────────────────────────────
+program
+  .command('shacl2sparql <source>')
+  .description('Compile SHACL shapes to SPARQL SELECT/CONSTRUCT retrieval queries')
+  .option('-b, --block-id <id>',       'SHACL block to compile (default: first shacl/turtle block)')
+  .option('--data-block <id>',         'Turtle data block whose graph IRI to inject as FROM clause')
+  .option('--from-graph <iri>',        'Explicit FROM graph IRI (repeatable)', collect, [])
+  .option('--shape <iri>',             'Compile only this named shape IRI (default: all shapes)')
+  .option('--type <type>',             'Query type: select (default) | construct | both', 'select')
+  .option('--insert',                  'Insert generated SPARQL block(s) into source DataBook in-place')
+  .option('--prefix <id>',             'Block ID prefix for generated blocks (default: select-/construct-)')
+  .option('-o, --output <file>',       'Output file (default: stdout; or in-place DataBook with --insert)')
+  .option('--encoding <enc>',          'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('--dry-run',                 'Print generated queries without writing')
+  .option('-v, --verbose',             'Log shape extraction and block insertion details')
+  .option('-q, --quiet',               'Suppress info messages')
+  .addHelpText('after', `
+Compiles each NodeShape in a SHACL shapes graph to a SPARQL query that
+retrieves all focus nodes (SELECT) or all matching triples (CONSTRUCT)
+satisfying that shape.
+
+Supports SHACL 1.2 Core including Node Expressions (sh:values / sh:this /
+sh:path / sh:filterShape / sh:intersection / sh:union / sh:distinct /
+sh:limit / sh:offset).
+
+Note: sh:maxCount uses a subquery + HAVING.  sh:xone emits a comment.
+
+Examples:
+  # Print SELECT queries for all shapes in a DataBook
+  databook shacl2sparql shapes.databook.md
+
+  # Print CONSTRUCT queries only for a specific SHACL block
+  databook shacl2sparql shapes.databook.md -b person-shapes --type construct
+
+  # Insert queries back into the DataBook
+  databook shacl2sparql shapes.databook.md --insert
+
+  # Generate queries with a FROM clause from a data block
+  databook shacl2sparql shapes.databook.md --data-block primary-graph --insert
+
+  # Compile only one shape
+  databook shacl2sparql shapes.databook.md --insert --shape https://example.org/PersonShape
+
+  # Compile a plain .ttl file
+  databook shacl2sparql shapes.ttl --type both -o queries.sparql
+  `)
+  .action(async (source, opts) => { await runShacl2Sparql(source, opts); });
+
 process.on('uncaughtException', (err) => {
   if (err.code === 'E_UNREACHABLE') { process.stderr.write(`error: ${err.message}\n`); process.exit(4); }
   if (err.exitCode) { process.stderr.write(`error: ${err.message}\n`); process.exit(err.exitCode); }
@@ -447,3 +497,4 @@ process.on('uncaughtException', (err) => {
 });
 
 program.parseAsync(process.argv);
+

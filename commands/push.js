@@ -1,27 +1,39 @@
 /**
- * databook push — transfer RDF blocks from a DataBook to a SPARQL triplestore via GSP.
- * Spec: https://w3id.org/databook/specs/cli-push
+ * PATCH: commands/push.js
+ *
+ * Changes from previous version:
+ *
+ *   1. Empty-string --graph guard:
+ *      `--graph ""` now exits with an error rather than silently falling
+ *      through to the fragment-addressing rule.  Commander sets opts.graph=""
+ *      when the user passes --graph "" which previously evaluated to falsy.
+ *
+ *   2. Default-graph behaviour:
+ *      When no named graph IRI is determinable (no --graph, no
+ *      frontmatter graph.named_graph), resolveGraphIri() now returns null
+ *      instead of applying the fragment-addressing rule.  gspPut/gspPost
+ *      interpret null as ?default (GSP default graph), so triples that
+ *      have no explicit destination land in the triplestore's default graph
+ *      rather than an auto-generated fragment IRI.
+ *
+ *      To restore the old fragment-addressing behaviour per-document, set
+ *      graph.named_graph in the DataBook frontmatter, or pass --graph <iri>.
  */
 
 import { loadDataBookFile, PUSHABLE_LABELS, blockPayload } from '../lib/parser.js';
 import { resolveEncoding, writeOutput }                    from '../lib/encoding.js';
 import { getDefaultEndpoint, inferGspEndpoint, inferUpdateEndpoint } from '../lib/config.js';
 import { resolveAuth } from '../lib/auth.js';
-import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints } from '../lib/serverConfig.js'; // localhost default included
+import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints } from '../lib/serverConfig.js';
 import { gspPut, gspPost, sparqlUpdate, contentTypeForLabel, checkResponse } from '../lib/gsp.js';
 import { frontmatterToTurtle } from '../lib/reify.js';
 
-/**
- * Run the `databook push` command.
- * @param {string} filePath
- * @param {object} opts
- */
 export async function runPush(filePath, opts) {
   const {
     server: serverName,
     endpoint: endpointOpt,
     gspEndpoint: gspOpt,
-    blockId: blockIdOpts = [],   // may be specified multiple times
+    blockId: blockIdOpts = [],
     graph: graphOpt,
     meta = true,
     merge = false,
@@ -32,6 +44,11 @@ export async function runPush(filePath, opts) {
   } = opts;
 
   if (dryRun) opts.verbose = true;
+
+  // ── Validate --graph early: reject explicit empty string ──────────────────
+  if (graphOpt !== undefined && graphOpt !== null && graphOpt.trim() === '') {
+    die('--graph requires a non-empty IRI; pass no flag to use the default graph', 2);
+  }
 
   // ── HTTP publish mode (--publish) ─────────────────────────────────────────
   if (publishUrl) {
@@ -89,32 +106,25 @@ export async function runPush(filePath, opts) {
 
   // ── Load DataBook ─────────────────────────────────────────────────────────
   let db;
-  try {
-    db = loadDataBookFile(filePath);
-  } catch (e) {
-    die(e.message, 2);
-  }
+  try { db = loadDataBookFile(filePath); }
+  catch (e) { die(e.message, 2); }
 
   const fm = db.frontmatter;
 
   // ── Resolve endpoints ─────────────────────────────────────────────────────
-  // Priority: explicit flag > named server config > --dataset shorthand > processors.toml default > localhost:3030/ds
-  const datasetCfg    = opts.dataset ? datasetToEndpoints(opts.dataset) : null;
+  const datasetCfg     = opts.dataset ? datasetToEndpoints(opts.dataset) : null;
   const sparqlEndpoint = endpointOpt ?? serverCfg?.endpoint ?? datasetCfg?.endpoint ?? getDefaultEndpoint() ?? LOCALHOST_FUSEKI.endpoint;
 
   let gspEndpoint = gspOpt ?? serverCfg?.gsp ?? datasetCfg?.gsp;
   if (!gspEndpoint) {
-    try {
-      gspEndpoint = inferGspEndpoint(sparqlEndpoint);
-    } catch (e) {
-      gspEndpoint = LOCALHOST_FUSEKI.gsp;
-    }
+    try   { gspEndpoint = inferGspEndpoint(sparqlEndpoint); }
+    catch { gspEndpoint = LOCALHOST_FUSEKI.gsp; }
   }
 
   const updateEndpoint = inferUpdateEndpoint(sparqlEndpoint);
   const auth = resolveAuth(sparqlEndpoint, authOpt ?? serverCfg?.auth);
 
-  // ── Select blocks ──────────────────────────────────────────────────────────
+  // ── Select blocks ─────────────────────────────────────────────────────────
   const blockIds = Array.isArray(blockIdOpts) ? blockIdOpts : [blockIdOpts].filter(Boolean);
   let selectedBlocks;
 
@@ -129,8 +139,11 @@ export async function runPush(filePath, opts) {
     selectedBlocks = db.blocks.filter(b => PUSHABLE_LABELS.has(b.label));
   }
 
-  // Validate --graph constraint
-  if (graphOpt && selectedBlocks.length > 1) {
+  // Validate --graph constraint (only when a real non-empty IRI is given)
+  const effectiveGraphOpt = (graphOpt !== undefined && graphOpt !== null && graphOpt.trim() !== '')
+    ? graphOpt : undefined;
+
+  if (effectiveGraphOpt && selectedBlocks.length > 1) {
     die('--graph requires exactly one block; multiple blocks selected', 2);
   }
 
@@ -138,9 +151,8 @@ export async function runPush(filePath, opts) {
   const skippedBlocks  = selectedBlocks.filter(b => !PUSHABLE_LABELS.has(b.label));
 
   if (verbose && skippedBlocks.length > 0) {
-    for (const b of skippedBlocks) {
+    for (const b of skippedBlocks)
       log(`[push] SKIP  block '${b.id ?? '(unlabelled)'}' (${b.label}) — not a pushable type`);
-    }
   }
 
   // ── Execute pushes ─────────────────────────────────────────────────────────
@@ -148,18 +160,17 @@ export async function runPush(filePath, opts) {
   const databookId = fm.id;
 
   for (const block of pushableBlocks) {
-    const graphIri = resolveGraphIri(block, graphOpt, fm, databookId, db.filePath, pushableBlocks.length);
-    const payload = blockPayload(block);
+    const graphIri = resolveGraphIri(block, effectiveGraphOpt, fm, databookId, db.filePath, pushableBlocks.length);
+    const payload  = blockPayload(block);
 
     if (block.label === 'sparql-update') {
-      // Execute as SPARQL Update, not GSP
       await executeSparqlUpdate(block, payload, updateEndpoint, auth, dryRun, verbose);
       pushed++;
       continue;
     }
 
     const contentType = contentTypeForLabel(block.label);
-    const method = merge ? 'POST' : 'PUT';
+    const method      = merge ? 'POST' : 'PUT';
 
     if (verbose || dryRun) {
       logBlockOp(method, gspEndpoint, graphIri, contentType, payload, dryRun);
@@ -209,7 +220,7 @@ export async function runPush(filePath, opts) {
     log(`[push] ${pushed} block${pushed !== 1 ? 's' : ''} pushed, ${skippedBlocks.length} skipped, ${failed} failed${metaNote}`);
   }
 
-  if (failed > 0 && pushed > 0) process.exit(1);
+  if (failed > 0 && pushed > 0)  process.exit(1);
   if (failed > 0 && pushed === 0) process.exit(2);
 }
 
@@ -217,19 +228,26 @@ export async function runPush(filePath, opts) {
 
 /**
  * Determine the target named graph IRI for a block.
- * Priority: --graph flag > graph.named_graph > fragment-addressing rule
+ *
+ * Priority:
+ *   1. Explicit --graph <iri>  (already validated as non-empty by caller)
+ *   2. frontmatter graph.named_graph  (single-block only)
+ *   3. null → GSP ?default (default graph)
+ *
+ * Previously step 3 applied a fragment-addressing rule.  That was changed
+ * so that blocks without an explicit graph destination land in the default
+ * graph rather than an auto-generated named graph.  Set graph.named_graph
+ * in frontmatter to restore per-document named-graph assignment.
  */
 function resolveGraphIri(block, graphOpt, fm, databookId, filePath, totalBlocks = 1) {
   // 1. Explicit --graph
   if (graphOpt) return graphOpt;
 
-  // 2. graph.named_graph (single-block convenience, only when one block selected)
+  // 2. Frontmatter graph.named_graph (single-block convenience)
   if (fm.graph?.named_graph && totalBlocks === 1) return fm.graph.named_graph;
 
-  // 3. Fragment-addressing rule
-  const docId = databookId ?? `file://${filePath ?? 'unknown'}`;
-  const blockId = block.id ?? block.label;
-  return `${docId}#${blockId}`;
+  // 3. Default graph  (null → GSP ?default in gsp.js)
+  return null;
 }
 
 async function executeSparqlUpdate(block, payload, updateEndpoint, auth, dryRun, verbose) {
@@ -245,16 +263,14 @@ async function executeSparqlUpdate(block, payload, updateEndpoint, auth, dryRun,
 }
 
 function logBlockOp(method, endpoint, graphIri, contentType, payload, dryRun, isMeta = false) {
+  const graphLabel = graphIri === null ? '(default graph)' : graphIri;
   const lines = payload.split('\n').filter(l => l.trim()).length;
   log(`[push] ${method.padEnd(4)} ${endpoint}`);
-  log(`[push]       ?graph=${graphIri}`);
+  log(`[push]       ?graph=${graphLabel}`);
   log(`[push]       Content-Type: ${contentType}`);
   log(`[push]       Lines: ~${lines}`);
   if (dryRun) log(`[push]       Status: [not sent]`);
 }
 
-function log(msg)      { process.stderr.write(msg + '\n'); }
-function die(msg, code = 2) {
-  process.stderr.write(`error: ${msg}\n`);
-  process.exit(code);
-}
+function log(msg)         { process.stderr.write(msg + '\n'); }
+function die(msg, code=2) { process.stderr.write(`error: ${msg}\n`); process.exit(code); }

@@ -49,8 +49,8 @@ shapes.databook.md#<block-id>
 Complete SHACL shapes for Platform, Sensor, ObservableProperty,
 and Observation. Used in full-pipeline validation tests.
 
-```shacl
 <!-- databook:id: observatory-shapes -->
+```shacl
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix ssn:  <http://www.w3.org/ns/ssn/> .
@@ -127,8 +127,8 @@ obs:ObservationShape a sh:NodeShape ;
 Validates sensors only (no platform or observation constraints).
 Used for single-operation `--shapes` tests.
 
-```shacl
 <!-- databook:id: sensor-shapes -->
+```shacl
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -160,8 +160,8 @@ obs:SensorLightShape a sh:NodeShape ;
 Validates that sensors have a recent calibration date (after 2025-01-01).
 Tests SHACL `sh:minInclusive` on date values.
 
-```shacl
 <!-- databook:id: calibration-shapes -->
+```shacl
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
