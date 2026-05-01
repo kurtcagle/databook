@@ -1,4 +1,4 @@
-# databook-cli
+# Databook and the Databook CLI
 
 **v1.4.0** — CLI toolchain for [DataBook](https://github.com/kurtcagle/databook) semantic documents.
 
