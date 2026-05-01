@@ -1,5 +1,9 @@
 # Installation
 
+## Version
+
+This is Version 1.4.0 of the Databook specification
+
 ## Requirements
 
 - **Node.js** v18 or later (ESM support required)
