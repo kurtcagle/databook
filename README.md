@@ -20,6 +20,10 @@ node bin/databook.js <command>
 
 ---
 
+## Databook Property Reference Guide
+
+A guide to the YAML Front Matter and data block properties for databooks is available [here](databook-property-reference.md).
+
 ## Commands
 
 ### `databook head` — Inspect a DataBook
