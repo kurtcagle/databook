@@ -8,6 +8,7 @@
 
 [default_endpoint]
 sparql    = "http://localhost:3030/ds/sparql"
+gsp    = "http://localhost:3030/ds/data"
 # inference = "http://localhost:3030/ds/query"   # optional: inference-enabled endpoint
 
 # ── Per-endpoint auth ─────────────────────────────────────────────────────────
@@ -21,6 +22,14 @@ auth = ""  # e.g. "Basic YWRtaW46cGFzc3dvcmQ="
 # [endpoints."https://prod.example.org/sparql"]
 # auth_env  = "PROD_SPARQL_AUTH"
 # inference = "https://prod.example.org/query"
+
+#[endpoints."http://100.106.176.165/:3030"]
+#auth = ""  # e.g. "Basic YWRtaW46cGFzc3dvcmQ="
+
+# [endpoints."http://100.106.176.165/sparql"]
+# auth_env  = "PROD_SPARQL_AUTH"
+# inference = "http://100.106.176.165/ds/query"
+
 
 # ── Processor declarations ────────────────────────────────────────────────────
 # Keys are the canonical processor IRIs used in process DataBook declarations.

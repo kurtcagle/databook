@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * databook — CLI for DataBook semantic documents. v1.4.0
+ * databook — CLI for DataBook semantic documents. v1.4.2
  */
 
 import { program } from 'commander';
@@ -23,30 +23,31 @@ import { runValidate }      from '../commands/validate.js';
 import { runDescribe }      from '../commands/describe.js';
 import { runIngest }        from '../commands/ingest.js';
 import { runShacl2Sparql }        from '../commands/shacl2sparql.js';
+import { runList }          from '../commands/list.js';
 
 program
   .name('databook')
   .description('DataBook CLI — inspect, extract, push, pull, process, query, and validate DataBook semantic documents')
-  .version('1.4.0');
+  .version('1.4.2');
 
-// ─── databook head ────────────────────────────────────────────────────────────
+// ─── databook head ────────────────────────────────────────────────────────────────
 program
   .command('head [input]')
   .description('Extract frontmatter / block metadata (read), or patch frontmatter in-place (update)')
-  // ── Read-mode options ──────────────────────────────────────────────────────
-  .option('--block-id <id>',       'Read mode: return metadata for a specific block only')
-  .option('-f, --format <fmt>',    'Read mode output format: json (default), yaml, xml, turtle', 'json')
-  // ── Update-mode options ────────────────────────────────────────────────────
-  .option('--set <key=value>',     'Update mode: set a frontmatter key (dot-path; repeatable; @now/@today tokens)', collect, [])
-  .option('--json <string>',       'Update mode: inline JSON patch object')
-  .option('--yaml <string>',       'Update mode: inline YAML patch object')
-  .option('--file <path>',         'Update mode: path to .json or .yaml patch file')
-  .option('--replace',             'Update mode: replace entire frontmatter (default: deep merge)')
-  .option('--dry-run',             'Update mode: print resulting document to stdout without writing')
-  // ── Shared options ─────────────────────────────────────────────────────────
-  .option('-o, --output <file>',   'Output file (read: default stdout; update: default overwrites input)')
-  .option('--encoding <enc>',      'Output encoding: utf8 (default), utf8bom, utf16')
-  .option('-q, --quiet',           'Suppress warnings and info messages')
+  // ── Read-mode options ──────────────────────────────────────────────────────────
+  .option('--block-id <id>',        'Read mode: return metadata for a specific block only')
+  .option('-f, --format <fmt>',      'Read mode output format: json (default), yaml, xml, turtle', 'json')
+  // ── Update-mode options ────────────────────────────────────────────────────────
+  .option('--set <key=value>',      'Update mode: set a frontmatter key (dot-path; repeatable; @now/@today tokens)', collect, [])
+  .option('--json <string>',        'Update mode: inline JSON patch object')
+  .option('--yaml <string>',        'Update mode: inline YAML patch object')
+  .option('--file <path>',           'Update mode: path to .json or .yaml patch file')
+  .option('--replace',               'Update mode: replace entire frontmatter (default: deep merge)')
+  .option('--dry-run',               'Update mode: print resulting document to stdout without writing')
+  // ── Shared options ─────────────────────────────────────────────────────────────
+  .option('-o, --output <file>',    'Output file (read: default stdout; update: default overwrites input)')
+  .option('--encoding <enc>',       'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('-q, --quiet',            'Suppress warnings and info messages')
   .addHelpText('after', `
 READ MODE (default — no --set/--json/--yaml/--file):
   databook head source.databook.md
@@ -67,7 +68,7 @@ Dot-paths: --set graph.triple_count=47 writes into nested frontmatter objects.
   `)
   .action(async (input, opts) => { await runHead(input ?? null, opts); });
 
-// ─── databook insert ──────────────────────────────────────────────────────────
+// ─── databook insert ──────────────────────────────────────────────────────────────
 program
   .command('insert <databook> [file]')
   .description('Insert a data file as a named block, or edit body prose, in an existing DataBook')
@@ -111,17 +112,17 @@ Language inference from extension:
   `)
   .action(async (databook, file, opts) => { await runInsert(databook, file ?? null, opts); });
 
-// ─── databook drop ────────────────────────────────────────────────────────────
+// ─── databook drop ────────────────────────────────────────────────────────────────
 program
   .command('drop <databook>')
   .description('Remove one or more named blocks from a DataBook')
-  .requiredOption('--id <block-id>',    'Block ID to remove (repeatable)', collect, [])
-  .option('--remove-prose',             'Also remove the prose section preceding each dropped block')
-  .option('--ignore-missing',           'Silently skip --id values that do not exist (default: error)')
-  .option('-o, --output <file>',        'Output path (default: overwrites source DataBook)')
-  .option('--dry-run',                  'Print resulting document to stdout without writing')
-  .option('--encoding <enc>',           'Output encoding: utf8 (default), utf8bom, utf16')
-  .option('-q, --quiet',                'Suppress info and warning messages')
+  .requiredOption('--id <block-id>',   'Block ID to remove (repeatable)', collect, [])
+  .option('--remove-prose',            'Also remove the prose section preceding each dropped block')
+  .option('--ignore-missing',          'Silently skip --id values that do not exist (default: error)')
+  .option('-o, --output <file>',       'Output path (default: overwrites source DataBook)')
+  .option('--dry-run',                 'Print resulting document to stdout without writing')
+  .option('--encoding <enc>',          'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('-q, --quiet',               'Suppress info and warning messages')
   .addHelpText('after', `
 Removes each named block — its adjacent annotation lines and fenced content —
 from the document.  The frontmatter is not modified.
@@ -145,7 +146,7 @@ Examples:
   `)
   .action(async (databook, opts) => { await runDrop(databook, opts); });
 
-// ─── databook convert ─────────────────────────────────────────────────────────
+// ─── databook convert ─────────────────────────────────────────────────────────────
 program
   .command('convert [input]')
   .description('Convert a DataBook block to another format')
@@ -159,7 +160,7 @@ program
   .addHelpText('after', `\nRDF input formats:  turtle, turtle12, trig, shacl, json-ld\nRDF output formats: turtle, turtle12, ntriples, trig, json-ld, yaml-ld, xml-rdf, csv, tsv, markdown, yaml\nSPARQL results:     csv, tsv, markdown, yaml, json\n\nExamples:\n  databook convert source.databook.md#primary-graph --to json-ld\n  cat graph.ttl | databook convert - --from turtle --to json-ld\n  databook convert source.databook.md --list\n  `)
   .action(async (input, opts) => { await runConvert(input ?? null, opts); });
 
-// ─── databook extract ─────────────────────────────────────────────────────────
+// ─── databook extract ─────────────────────────────────────────────────────────────
 program
   .command('extract [input]')
   .description('Emit raw block content to stdout or a file')
@@ -175,7 +176,7 @@ program
   .addHelpText('after', `\nExamples:\n  databook extract source.databook.md#primary-graph | riot --syntax=turtle -\n  databook extract source.databook.md --block-id primary-graph -o graph.ttl\n  databook extract source.databook.md --list\n  `)
   .action(async (input, opts) => { await runExtract(input ?? null, opts); });
 
-// ─── databook create ──────────────────────────────────────────────────────────
+// ─── databook create ──────────────────────────────────────────────────────────────
 program
   .command('create [inputs...]')
   .description('Wrap data files into a DataBook document')
@@ -194,88 +195,89 @@ program
   .addHelpText('after', `\nTemplate resolution order: (1) --template flag, (2) config template: field, (3) built-in minimal.\n\nExamples:\n  databook create ontology.ttl\n  databook create ontology.ttl shapes.shacl.ttl -C project.yaml -o output.databook.md\n  databook create -C pipeline/stage1.yaml -o output/stage1.databook.md\n  `)
   .action(async (inputs, opts) => { await runCreate(inputs ?? [], opts); });
 
-// ─── databook push ────────────────────────────────────────────────────────────
+// ─── databook push ────────────────────────────────────────────────────────────────
 program
   .command('push <file>')
   .description('Transfer RDF blocks from a DataBook to a SPARQL triplestore via GSP')
-  .option('-s, --server <n>',       'Named server from processors.toml (use "list" to show all)')
-  .option('-d, --dataset <n>',      'Fuseki dataset name on localhost (shorthand for --endpoint http://localhost:3030/<n>/sparql)')
-  .option('-e, --endpoint <url>',   'SPARQL query endpoint URL')
-  .option('--gsp-endpoint <url>',   'Explicit GSP (data) endpoint URL')
-  .option('-b, --block-id <id>',    'Push only this block (repeatable)', collect, [])
-  .option('-g, --graph <iri>',      'Override named graph IRI (single-block only)')
-  .option('--meta',                 'Push frontmatter as #meta graph (default: on)', true)
-  .option('--no-meta',              'Suppress frontmatter meta graph push')
-  .option('--merge',                'Use GSP POST (merge) instead of PUT (replace)')
-  .option('-a, --auth <credential>','Auth credential (Basic/Bearer or bare base64)')
-  .option('--dry-run',              'Print requests without sending them')
-  .option('-v, --verbose',          'Log per-block status')
+  .option('-s, --server <n>',        'Named server from processors.toml (use "list" to show all)')
+  .option('-d, --dataset <n>',       'Fuseki dataset name on localhost (shorthand for --endpoint http://localhost:3030/<n>/sparql)')
+  .option('-e, --endpoint <url>',    'SPARQL query endpoint URL')
+  .option('--gsp-endpoint <url>',    'Explicit GSP (data) endpoint URL')
+  .option('-b, --block-id <id>',     'Push only this block (repeatable)', collect, [])
+  .option('-g, --graph <iri>',       'Override named graph IRI (single-block only)')
+  .option('--meta',                  'Push frontmatter as #meta graph (default: on)', true)
+  .option('--no-meta',               'Suppress frontmatter meta graph push')
+  .option('--merge',                 'Use GSP POST (merge) instead of PUT (replace)')
+  .option('-a, --auth <credential>', 'Auth credential (Basic/Bearer or bare base64)')
+  .option('--dry-run',               'Print requests without sending them')
+  .option('-v, --verbose',           'Log per-block status')
   .addHelpText('after', `\nExamples:\n  databook push ontology.databook.md -d ggsc\n  databook push ontology.databook.md -e http://localhost:3030/ds/sparql --dry-run\n  databook push ontology.databook.md -b primary-block -g https://example.org/my-graph\n  DATABOOK_FUSEKI_AUTH="Basic YWRtaW46cGFzc3dvcmQ=" databook push file.databook.md -e http://host/ds/sparql\n  `)
   .action(async (file, opts) => { await runPush(file, opts); });
 
-// ─── databook pull ────────────────────────────────────────────────────────────
+// ─── databook pull ────────────────────────────────────────────────────────────────
 program
-  .command('pull <file>')
+  .command('pull [file]')
   .description('Retrieve RDF from a SPARQL triplestore into a DataBook')
-  .option('-s, --server <n>',         'Named server from processors.toml (use "list" to show all)')
-  .option('-d, --dataset <n>',        'Fuseki dataset name on localhost (shorthand for --endpoint http://localhost:3030/<n>/sparql)')
-  .option('-e, --endpoint <url>',     'SPARQL query endpoint URL')
-  .option('-g, --graph <iri>',        'Named graph IRI to fetch (repeatable)', collect, [])
-  .option('-i, --id <id>',            'databook:id of an embedded SPARQL block to execute')
-  .option('-Q, --query <file>',       'Path to external .sparql/.rq query file')
-  .option('--replace-block <id>',     'Block to replace with pull results (requires --output)')
-  .option('--infer',                  'Use inference-enabled endpoint')
-  .option('-f, --format <fmt>',       'Output format: turtle, trig, json, csv, tsv')
-  .option('--stats',                  'Recompute graph.triple_count and graph.subjects after pull')
-  .option('--wrap',                   'Write result into a new output DataBook with full provenance')
-  .option('--no-wrap',                'Emit raw content without DataBook wrapping')
-  .option('-o, --output <file>',      'Output file (for raw output or in-place replacement)')
-  .option('-a, --auth <credential>',  'Auth credential')
-  .option('--encoding <enc>',         'Output encoding: utf8 (default), utf8bom, utf16')
-  .option('--dry-run',                'Print requests without sending')
-  .option('-v, --verbose',            'Log endpoint, query, status, result size')
-  .addHelpText('after', `\nPull modes:\n  Default        Named graph fetch (GSP GET)\n  --id / -i      Execute embedded SPARQL block by id\n  --query / -Q   Execute external .sparql/.rq file\n\nNOTE: --fragment is now --id / -i; --out is now --output / -o; --block-id is now --replace-block\n\nExamples:\n  databook pull sensors.databook.md -d ggsc --graph https://example.org/sensors\n  databook pull sensors.databook.md -e http://host/sparql -i sensor-construct --replace-block sensor-graph --stats -o sensors.databook.md\n  databook pull onto.databook.md -e http://host/sparql -Q queries/extract.sparql -o result.ttl\n  databook pull sensors.databook.md -d ggsc --graph https://example.org/sensors --no-wrap\n  `)
-  .action(async (file, opts) => { await runPull(file, opts); });
+  .option('-s, --server <n>',          'Named server from processors.toml (use "list" to show all)')
+  .option('-d, --dataset <n>',          'Fuseki dataset name on localhost (shorthand for --endpoint http://localhost:3030/<n>/sparql)')
+  .option('-e, --endpoint <url>',       'SPARQL query endpoint URL')
+  .option('-g, --graph <iri>',          'Named graph IRI to fetch (repeatable)', collect, [])
+  .option('-i, --id <id>',              'databook:id of an embedded SPARQL block to execute')
+  .option('-Q, --query <file>',         'Path to external .sparql/.rq query file')
+  .option('--replace-block <id>',       'Block to replace with pull results (requires --output)')
+  .option('--databook-id <iri>',        'Recover all blocks for this DataBook IRI (no source file required)')
+  .option('--infer',                    'Use inference-enabled endpoint')
+  .option('-f, --format <fmt>',         'Output format: turtle, trig, json, csv, tsv')
+  .option('--stats',                    'Recompute graph.triple_count and graph.subjects after pull')
+  .option('--wrap',                     'Write result into a new output DataBook with full provenance', true)
+  .option('--no-wrap',                  'Emit raw content without DataBook wrapping')
+  .option('-o, --output <file>',        'Output file (for raw output or in-place replacement)')
+  .option('-a, --auth <credential>',    'Auth credential')
+  .option('--encoding <enc>',           'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('--dry-run',                  'Print requests without sending')
+  .option('-v, --verbose',              'Log endpoint, query, status, result size')
+  .addHelpText('after', `\nPull modes:\n  Default           Named graph fetch (GSP GET)\n  --id / -i         Execute embedded SPARQL block by id\n  --query / -Q      Execute external .sparql/.rq file\n  --databook-id     Recover entire DataBook by IRI (no source file needed)\n\nNOTE: --fragment is now --id / -i; --out is now --output / -o; --block-id is now --replace-block\n\nExamples:\n  databook pull sensors.databook.md -d ggsc --graph https://example.org/sensors\n  databook pull sensors.databook.md -e http://host/sparql -i sensor-construct --replace-block sensor-graph --stats -o sensors.databook.md\n  databook pull onto.databook.md -e http://host/sparql -Q queries/extract.sparql -o result.ttl\n  databook pull --databook-id urn:databook:sensors-v1.0.0 -e http://localhost:3030/ds/sparql -o recovered.databook.md\n  `)
+  .action(async (file, opts) => { await runPull(file ?? null, opts); });
 
-// ─── databook sparql ─────────────────────────────────────────────────────────
+// ─── databook sparql ──────────────────────────────────────────────────────────────
 program
   .command('sparql [source]')
   .description('Execute a SPARQL SELECT, CONSTRUCT, or ASK query against a triplestore')
-  .option('-i, --id <id>',          'Embedded sparql block id in source DataBook (or use source#id)')
-  .option('-Q, --query <file>',     'External .sparql/.rq query file')
-  .option('-s, --server <n>',       'Named server from processors.toml (use "list" to show all)')
-  .option('-d, --dataset <n>',      'Fuseki dataset name on localhost')
-  .option('-e, --endpoint <url>',   'SPARQL query endpoint URL')
-  .option('-g, --graph <iri>',      'Restrict query to named graph (repeatable)', collect, [])
-  .option('--wrap',                 'Wrap results in a DataBook (default: on)', true)
-  .option('--no-wrap',              'Emit raw results without DataBook wrapping')
-  .option('-f, --format <fmt>',     'Output format: json, turtle, trig, csv, tsv, markdown')
-  .option('-o, --output <file>',    'Output file (default: stdout)')
-  .option('-a, --auth <credential>','Auth credential')
-  .option('--dry-run',              'Print query without sending')
-  .option('-v, --verbose',          'Log request details')
-  .option('-q, --quiet',            'Suppress warnings')
-  .option('--encoding <enc>',       'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('-i, --id <id>',           'Embedded sparql block id in source DataBook (or use source#id)')
+  .option('-Q, --query <file>',      'External .sparql/.rq query file')
+  .option('-s, --server <n>',        'Named server from processors.toml (use "list" to show all)')
+  .option('-d, --dataset <n>',       'Fuseki dataset name on localhost')
+  .option('-e, --endpoint <url>',    'SPARQL query endpoint URL')
+  .option('-g, --graph <iri>',       'Restrict query to named graph (repeatable)', collect, [])
+  .option('--wrap',                  'Wrap results in a DataBook (default: on)', true)
+  .option('--no-wrap',               'Emit raw results without DataBook wrapping')
+  .option('-f, --format <fmt>',      'Output format: json, turtle, trig, csv, tsv, markdown')
+  .option('-o, --output <file>',     'Output file (default: stdout)')
+  .option('-a, --auth <credential>', 'Auth credential')
+  .option('--dry-run',               'Print query without sending')
+  .option('-v, --verbose',           'Log request details')
+  .option('-q, --quiet',             'Suppress warnings')
+  .option('--encoding <enc>',        'Output encoding: utf8 (default), utf8bom, utf16')
   .addHelpText('after', `\nQuery source (one required): source#id  |  -i/--id <id>  |  -Q/--query <file>\n\nExamples:\n  databook sparql queries.databook.md#select-sensors -d ggsc\n  databook sparql queries.databook.md -i select-sensors -e http://localhost:3030/ds/sparql\n  databook sparql -Q queries/all.sparql -d ggsc -f json\n  databook sparql queries.databook.md#construct-graph -d ggsc --no-wrap -o result.ttl\n  `)
   .action(async (source, opts) => { await runSparql(source ?? null, opts); });
 
-// ─── databook sparql-update ───────────────────────────────────────────────────
+// ─── databook sparql-update ───────────────────────────────────────────────────────
 program
   .command('sparql-update [source]')
   .description('Execute a SPARQL INSERT, DELETE, or DROP update against a triplestore')
-  .option('-i, --id <id>',          'Embedded sparql-update block id in source DataBook (or use source#id)')
-  .option('-Q, --query <file>',     'External .sparql/.ru update file')
-  .option('-s, --server <n>',       'Named server from processors.toml (use "list" to show all)')
-  .option('-d, --dataset <n>',      'Fuseki dataset name on localhost')
-  .option('-e, --endpoint <url>',   'SPARQL update endpoint URL')
-  .option('-a, --auth <credential>','Auth credential')
-  .option('--dry-run',              'Print update without sending')
-  .option('-v, --verbose',          'Log request details')
-  .option('-q, --quiet',            'Suppress success summary line')
+  .option('-i, --id <id>',           'Embedded sparql-update block id in source DataBook (or use source#id)')
+  .option('-Q, --query <file>',      'External .sparql/.ru update file')
+  .option('-s, --server <n>',        'Named server from processors.toml (use "list" to show all)')
+  .option('-d, --dataset <n>',       'Fuseki dataset name on localhost')
+  .option('-e, --endpoint <url>',    'SPARQL update endpoint URL')
+  .option('-a, --auth <credential>', 'Auth credential')
+  .option('--dry-run',               'Print update without sending')
+  .option('-v, --verbose',           'Log request details')
+  .option('-q, --quiet',             'Suppress success summary line')
   .addHelpText('after', `\nUpdate source (one required): source#id  |  -i/--id <id>  |  -Q/--query <file>\n\nExamples:\n  databook sparql-update updates.databook.md#insert-labels -d ggsc\n  databook sparql-update -Q updates/correct-dates.ru -d ggsc\n  databook sparql-update updates.databook.md#delete-orphans -d ggsc --dry-run\n  `)
   .action(async (source, opts) => { await runSparqlUpdate(source ?? null, opts); });
 
-// ─── databook validate ────────────────────────────────────────────────────────
+// ─── databook validate ────────────────────────────────────────────────────────────
 program
   .command('validate <source>')
   .description('Run SHACL validation against RDF blocks in a DataBook')
@@ -296,7 +298,7 @@ program
   .addHelpText('after', `\nEngine resolution: (1) JENA_HOME/bin/shacl or 'shacl' on PATH, (2) 'pyshacl' on PATH\n\nExamples:\n  databook validate data.databook.md --shapes shapes.databook.md#person-shapes\n  databook validate data.databook.md --block-id primary-graph --shapes shapes.ttl\n  databook validate data.databook.md --shapes shapes.ttl --fail-on-violation --no-wrap\n  databook validate data.databook.md --shapes shapes.databook.md#org-shapes -o report.databook.md\n  `)
   .action(async (source, opts) => { await runValidate(source, opts); });
 
-// ─── databook describe ────────────────────────────────────────────────────────
+// ─── databook describe ────────────────────────────────────────────────────────────
 program
   .command('describe [file]')
   .description('Retrieve resource descriptions by IRI from a SPARQL triplestore (SPARQL DESCRIBE)')
@@ -319,7 +321,7 @@ program
   .addHelpText('after', `\nPhase 2 (SHACL-guided CONSTRUCT) is planned. --shapes currently falls back to standard DESCRIBE.\n\nExamples:\n  databook describe -d ggsc --iri https://example.org/ns#Observatory\n  databook describe -d ggsc --iri https://example.org/ns#Observatory --iri https://example.org/ns#Station\n  databook describe -d ggsc --iri https://example.org/ns#Observatory --graph https://example.org/graphs/geodetic\n  databook describe -d ggsc --iri https://example.org/ns#Observatory --no-wrap\n  databook describe data.databook.md -d ggsc --iri https://example.org/ns#Observatory -o desc.databook.md\n  `)
   .action(async (file, opts) => { await runDescribe(file ?? null, opts); });
 
-// ─── databook ingest ──────────────────────────────────────────────────────────
+// ─── databook ingest ──────────────────────────────────────────────────────────────
 program
   .command('ingest [input]')
   .description('Convert a plain Markdown document to a DataBook')
@@ -337,28 +339,28 @@ program
   .addHelpText('after', `\nUplifted fence labels: turtle, turtle12, trig, json-ld, shacl, sparql, sparql-update, prompt, manifest\n\nPhase 2 enrichment:\n  databook prompt output.databook.md --prompt "Write a concise description" --patch frontmatter.description\n\nExamples:\n  databook ingest article.md -o article.databook.md\n  databook ingest article.md --base-iri https://vocab.example.org/ -o article.databook.md\n  databook ingest article.md --dry-run\n  cat article.md | databook ingest - -o article.databook.md\n  `)
   .action(async (input, opts) => { await runIngest(input ?? null, opts); });
 
-// ─── databook process ─────────────────────────────────────────────────────────
+// ─── databook process ─────────────────────────────────────────────────────────────
 program
   .command('process [source]')
   .description('Execute a processor-registry DataBook as a DAG pipeline')
-  .option('-P, --process <file>',      'Process DataBook declaring the pipeline')
-  .option('--pipeline <id>',           'build:Target IRI or fragment id to execute')
-  .option('--params <source>',         'Parameter source: inline JSON, .json/.yaml file, or fragment ref')
-  .option('--interpolate',             'Enable {{variable}} template interpolation in payloads')
-  .option('--source-block <id>',       'Use only this source block as input')
-  .option('-C, --config <file>',       'Config YAML for output DataBook frontmatter')
-  .option('--set <k=v>',               'Frontmatter NVP override (repeatable)', collect, [])
-  .option('-o, --output <file>',       'Output DataBook path (default: {source-stem}-output.databook.md)')
-  .option('--force',                   'Overwrite output if it exists')
-  .option('--encoding <enc>',          'Output encoding: utf8 (default), utf8bom, utf16')
-  .option('--to <format>',             'Convert all output blocks to another format')
-  .option('--dry-run',                 'Print execution plan without processing')
-  .option('-v, --verbose',             'Emit per-stage execution details')
-  .option('-q, --quiet',               'Suppress warnings')
+  .option('-P, --process <file>',       'Process DataBook declaring the pipeline')
+  .option('--pipeline <id>',            'build:Target IRI or fragment id to execute')
+  .option('--params <source>',          'Parameter source: inline JSON, .json/.yaml file, or fragment ref')
+  .option('--interpolate',              'Enable {{variable}} template interpolation in payloads')
+  .option('--source-block <id>',        'Use only this source block as input')
+  .option('-C, --config <file>',        'Config YAML for output DataBook frontmatter')
+  .option('--set <k=v>',                'Frontmatter NVP override (repeatable)', collect, [])
+  .option('-o, --output <file>',        'Output DataBook path (default: {source-stem}-output.databook.md)')
+  .option('--force',                    'Overwrite output if it exists')
+  .option('--encoding <enc>',           'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('--to <format>',              'Convert all output blocks to another format')
+  .option('--dry-run',                  'Print execution plan without processing')
+  .option('-v, --verbose',              'Emit per-stage execution details')
+  .option('-q, --quiet',                'Suppress warnings')
   .addHelpText('after', `\nFor single-operation SPARQL or SHACL, use dedicated commands:\n  databook sparql source.databook.md#construct-graph -d ggsc\n  databook validate source.databook.md --shapes shapes.databook.md#person-shapes\n\nExamples:\n  databook process source.databook.md -P pipeline.databook.md -o output.databook.md\n  databook process source.databook.md -P pipeline.databook.md --dry-run\n  databook process source.databook.md -P pipeline.databook.md --params '{"type":"ex:Person"}'\n  `)
   .action(async (source, opts) => { await runProcess(source ?? null, opts); });
 
-// ─── databook transform ───────────────────────────────────────────────────────
+// ─── databook transform ───────────────────────────────────────────────────────────
 program
   .command('transform [source]')
   .description('Apply an XSLT stylesheet to XML content from a DataBook or plain XML file')
@@ -373,7 +375,7 @@ program
   .addHelpText('after', `\nProcessor resolution (--processor auto):\n  1. SAXON_JAR env var → java [JVM_ARGS] -jar $SAXON_JAR\n  2. 'saxon' on PATH\n  3. 'xsltproc' on PATH\n  `)
   .action(async (source, opts) => { await runTransform(source ?? null, opts); });
 
-// ─── databook prompt ──────────────────────────────────────────────────────────
+// ─── databook prompt ──────────────────────────────────────────────────────────────
 program
   .command('prompt [source]')
   .description('Send a DataBook (or block) as context to an LLM and write the response to an output DataBook')
@@ -397,7 +399,7 @@ program
   .addHelpText('after', `\nRequires: ANTHROPIC_API_KEY environment variable.\n\nPatch modes:\n  --patch frontmatter.FIELD       Write response to a frontmatter field\n  --patch-block BLOCK-ID          Replace or create a named block\n  --patch-mode merge|replace      For list fields / block content (default: replace)\n\nExamples:\n  databook prompt onto.databook.md --prompt "Summarise the class hierarchy" -o summary.databook.md\n  databook prompt article.databook.md --prompt "Write a concise 2-sentence description" --patch frontmatter.description\n  databook prompt data.databook.md --prompt "Suggest SHACL shapes" --patch-block suggested-shapes\n  `)
   .action(async (source, opts) => { await runPrompt(source ?? null, opts); });
 
-// ─── databook clear ───────────────────────────────────────────────────────────
+// ─── databook clear ───────────────────────────────────────────────────────────────
 program
   .command('clear [file]')
   .description('Remove named graphs from a triplestore via GSP DELETE, or DROP ALL graphs in a dataset')
@@ -417,7 +419,7 @@ program
   .addHelpText('after', `\nExamples:\n  databook clear test/observatory.databook.md -d ggsc\n  databook clear -d ggsc --graph https://w3id.org/databook/test/observatory-v1#primary-graph\n  databook clear test/observatory.databook.md -d ggsc --all --force\n  databook clear test/observatory.databook.md -d ggsc --dry-run --verbose\n  `)
   .action(async (file, opts) => { await runClear(file ?? null, opts); });
 
-// ─── databook fetch ───────────────────────────────────────────────────────────
+// ─── databook fetch ───────────────────────────────────────────────────────────────
 program
   .command('fetch <source>')
   .description('Retrieve a DataBook or block from an HTTP URL or registry alias')
@@ -436,26 +438,27 @@ program
   .addHelpText('after', `\nExamples:\n  databook fetch https://w3id.org/databook/specs/cli-conventions -o conventions.databook.md\n  databook fetch https://example.org/databooks/shapes-v1#person-shape --format turtle\n  databook fetch @my-shapes -o shapes.databook.md\n  databook fetch @cli-conventions --no-cache -o conventions.databook.md\n  `)
   .action(async (source, opts) => { await runFetch(source, opts); });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────────
+
 function collect(val, acc) { acc.push(val); return acc; }
 
 
-// ─── databook shacl2sparql ────────────────────────────────────────────────────
+// ─── databook shacl2sparql ────────────────────────────────────────────────────────
 program
   .command('shacl2sparql <source>')
   .description('Compile SHACL shapes to SPARQL SELECT/CONSTRUCT retrieval queries')
-  .option('-b, --block-id <id>',       'SHACL block to compile (default: first shacl/turtle block)')
-  .option('--data-block <id>',         'Turtle data block whose graph IRI to inject as FROM clause')
-  .option('--from-graph <iri>',        'Explicit FROM graph IRI (repeatable)', collect, [])
-  .option('--shape <iri>',             'Compile only this named shape IRI (default: all shapes)')
-  .option('--type <type>',             'Query type: select (default) | construct | both', 'select')
-  .option('--insert',                  'Insert generated SPARQL block(s) into source DataBook in-place')
-  .option('--prefix <id>',             'Block ID prefix for generated blocks (default: select-/construct-)')
-  .option('-o, --output <file>',       'Output file (default: stdout; or in-place DataBook with --insert)')
-  .option('--encoding <enc>',          'Output encoding: utf8 (default), utf8bom, utf16')
-  .option('--dry-run',                 'Print generated queries without writing')
-  .option('-v, --verbose',             'Log shape extraction and block insertion details')
-  .option('-q, --quiet',               'Suppress info messages')
+  .option('-b, --block-id <id>',        'SHACL block to compile (default: first shacl/turtle block)')
+  .option('--data-block <id>',          'Turtle data block whose graph IRI to inject as FROM clause')
+  .option('--from-graph <iri>',         'Explicit FROM graph IRI (repeatable)', collect, [])
+  .option('--shape <iri>',              'Compile only this named shape IRI (default: all shapes)')
+  .option('--type <type>',              'Query type: select (default) | construct | both', 'select')
+  .option('--insert',                   'Insert generated SPARQL block(s) into source DataBook in-place')
+  .option('--prefix <id>',              'Block ID prefix for generated blocks (default: select-/construct-)')
+  .option('-o, --output <file>',        'Output file (default: stdout; or in-place DataBook with --insert)')
+  .option('--encoding <enc>',           'Output encoding: utf8 (default), utf8bom, utf16')
+  .option('--dry-run',                  'Print generated queries without writing')
+  .option('-v, --verbose',              'Log shape extraction and block insertion details')
+  .option('-q, --quiet',                'Suppress info messages')
   .addHelpText('after', `
 Compiles each NodeShape in a SHACL shapes graph to a SPARQL query that
 retrieves all focus nodes (SELECT) or all matching triples (CONSTRUCT)
@@ -487,6 +490,41 @@ Examples:
   databook shacl2sparql shapes.ttl --type both -o queries.sparql
   `)
   .action(async (source, opts) => { await runShacl2Sparql(source, opts); });
+
+// ─── databook list ────────────────────────────────────────────────────────────────
+
+program
+  .command('list')
+  .description('List DataBooks pushed to the triplestore (queries #meta graphs)')
+  .option('-s, --server <n>',        'Named server from processors.toml (use "list" to show all)')
+  .option('-d, --dataset <n>',       'Fuseki dataset name on localhost')
+  .option('-e, --endpoint <url>',    'SPARQL query endpoint URL')
+  .option('-f, --format <fmt>',      'Output format: table (default), json, sparql', 'table')
+  .option('-a, --auth <credential>', 'Auth credential (Basic/Bearer or bare base64)')
+  .option('-v, --verbose',           'Show full IRI when truncated in table')
+  .option('-q, --quiet',             'Suppress count summary line')
+  .addHelpText('after', `
+NOTE: databook list queries the TRIPLESTORE for DataBooks that have been pushed
+via 'databook push --meta'.  It does NOT inspect a local .databook.md file.
+To inspect the blocks defined in a local file, use:
+  databook extract <file> --list
+
+Output formats:
+  table   Aligned columns — ID, Title, Version, Pushed, Triples
+  json    Machine-readable array — full IRIs, suitable for scripting
+  sparql  Print the catalogue query and exit (for custom use or debugging)
+
+The ID column shows the DataBook IRI, which can be used directly with:
+  databook pull --databook-id <id> -e <endpoint> -o recovered.databook.md
+
+Examples:
+  databook list -d ds
+  databook list -e http://localhost:3030/ds/sparql
+  databook list -e http://localhost:3030/ds/sparql --format json
+  databook list -d ds --format json | jq '.[0].id'
+  databook list --format sparql
+  `)
+  .action(async (opts) => { await runList(opts); });
 
 process.on('uncaughtException', (err) => {
   if (err.code === 'E_UNREACHABLE') { process.stderr.write(`error: ${err.message}\n`); process.exit(4); }

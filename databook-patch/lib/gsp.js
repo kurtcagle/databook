@@ -43,31 +43,25 @@ function graphParam(graphIri) {
 /**
  * GSP PUT — replace a graph.
  * Pass graphIri=null to target the default graph.
- * Returns { status, ok, url, errorBody } — url is the full GSP URL called.
- * errorBody is populated on non-2xx responses; consuming it prevents
- * UV_HANDLE_CLOSING crashes in Node 18+ (undici).
+ * Returns { status, ok, url } — url is the full GSP URL called.
  */
 export async function gspPut(gspEndpoint, graphIri, body, contentType, auth = null) {
   const url = `${gspEndpoint}${graphParam(graphIri)}`;
   const headers = buildHeaders(gspEndpoint, auth, { 'Content-Type': contentType });
   const resp = await fetchWithErrors(url, { method: 'PUT', headers, body });
-  // Always consume the response body to release the underlying socket.
-  // For error responses, capture the body for inclusion in error messages.
-  const errorBody = resp.ok ? (void await resp.body?.cancel?.(), '') : await resp.text().catch(() => '');
-  return { status: resp.status, ok: resp.ok, url, errorBody };
+  return { status: resp.status, ok: resp.ok, url };
 }
 
 /**
  * GSP POST — merge triples into a graph.
  * Pass graphIri=null to target the default graph.
- * Returns { status, ok, url, errorBody } — url is the full GSP URL called.
+ * Returns { status, ok, url } — url is the full GSP URL called.
  */
 export async function gspPost(gspEndpoint, graphIri, body, contentType, auth = null) {
   const url = `${gspEndpoint}${graphParam(graphIri)}`;
   const headers = buildHeaders(gspEndpoint, auth, { 'Content-Type': contentType });
   const resp = await fetchWithErrors(url, { method: 'POST', headers, body });
-  const errorBody = resp.ok ? (void await resp.body?.cancel?.(), '') : await resp.text().catch(() => '');
-  return { status: resp.status, ok: resp.ok, url, errorBody };
+  return { status: resp.status, ok: resp.ok, url };
 }
 
 /**
@@ -149,34 +143,27 @@ async function fetchWithErrors(url, options) {
 export function checkResponse(resp, context = '') {
   if (resp.ok) return;
   // Always include the URL when available — makes 404 and other failures self-diagnosable.
-  const urlNote   = resp.url       ? ` [${resp.url}]` : '';
-  const bodyNote  = resp.errorBody ? `\n  ${resp.errorBody.slice(0, 300)}` : '';
+  const urlNote = resp.url ? ` [${resp.url}]` : '';
   const ctx = context ? ` — ${context}${urlNote}` : urlNote;
   if (resp.status === 401 || resp.status === 403) {
-    const err = new Error(`auth rejected by endpoint (HTTP ${resp.status})${ctx}${bodyNote}`);
+    const err = new Error(`auth rejected by endpoint (HTTP ${resp.status})${ctx}`);
     err.code = 'E_AUTH';
     err.exitCode = 3;
     throw err;
   }
   if (resp.status === 404) {
-    const err = new Error(`not found (HTTP 404)${ctx}${bodyNote}`);
+    const err = new Error(`not found (HTTP 404)${ctx}`);
     err.code = 'E_NOT_FOUND';
     err.exitCode = 5;
     throw err;
   }
-  if (resp.status >= 400 && resp.status < 500) {
-    const err = new Error(`client error (HTTP ${resp.status})${ctx}${bodyNote}`);
-    err.code = 'E_CLIENT';
-    err.exitCode = 1;
-    throw err;
-  }
   if (resp.status >= 500) {
-    const err = new Error(`server error (HTTP ${resp.status})${ctx}${bodyNote}`);
+    const err = new Error(`server error (HTTP ${resp.status})${ctx}`);
     err.code = 'E_SERVER';
     err.exitCode = 1;
     throw err;
   }
-  const err = new Error(`HTTP ${resp.status}${ctx}${bodyNote}`);
+  const err = new Error(`HTTP ${resp.status}${ctx}`);
   err.code = 'E_HTTP';
   err.exitCode = 1;
   throw err;

@@ -5,6 +5,12 @@
  * Wraps Turtle, SHACL, SPARQL, TriG, JSON-LD, JSON, YAML, CSV, XML files
  * into a well-formed DataBook with YAML frontmatter, typed fenced blocks,
  * auto-derived graph stats, and a process stamp.
+ *
+ * v1.4.2: renderBlock now emits <!-- databook:id --> BEFORE the opening
+ *         fence (canonical v1.2+ placement) instead of as the first line
+ *         inside the fence. Legacy inline annotations in block.content are
+ *         stripped on output to prevent duplication when re-wrapping older
+ *         DataBooks.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -16,7 +22,7 @@ import yaml from 'js-yaml';
 import { computeStats } from '../lib/stats.js';
 import { loadDataBookFile, parseDataBook } from '../lib/parser.js';
 
-// ─── Template resolution constants ───────────────────────────────────────────
+// ─── Template resolution constants ──────────────────────────────────────────────
 
 /** Absolute path to the bundled templates/ directory (ESM-safe). */
 const TEMPLATES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'templates');
@@ -24,39 +30,39 @@ const TEMPLATES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'template
 /** Default template path. */
 const DEFAULT_TEMPLATE_PATH = join(TEMPLATES_DIR, 'default.databook.md');
 
-// ─── Format detection ─────────────────────────────────────────────────────────
+// ─── Format detection ────────────────────────────────────────────────────────────
 
 // Extension → fence label
 const EXT_TO_LABEL = {
   // Double extensions (checked first in resolveExt)
-  '.shacl.ttl':  'shacl',
-  '.shapes.ttl': 'shacl',
+  '.shacl.ttl':   'shacl',
+  '.shapes.ttl':  'shacl',
   '.databook.md': 'databook',
   // Single extensions
-  '.ttl':     'turtle',
-  '.turtle':  'turtle',
-  '.ttl12':   'turtle12',
-  '.trig':    'trig',
-  '.jsonld':  'json-ld',
-  '.json-ld': 'json-ld',
-  '.shacl':   'shacl',
-  '.sparql':  'sparql',
-  '.rq':      'sparql',
-  '.ru':      'sparql-update',
-  '.su':      'sparql-update',
-  '.json':    'json',
-  '.yaml':    'yaml',
-  '.yml':     'yaml',
-  '.xml':     'xml',
-  '.csv':     'csv',
-  '.tsv':     'csv',
-  '.xsl':     'xslt',
-  '.xslt':    'xslt',
-  '.xq':      'xquery',
-  '.xquery':  'xquery',
-  '.txt':     'text',
-  '.prompt':  'prompt',
-  '.md':      'databook',   // existing DataBook — blocks extracted
+  '.ttl':      'turtle',
+  '.turtle':   'turtle',
+  '.ttl12':    'turtle12',
+  '.trig':     'trig',
+  '.jsonld':   'json-ld',
+  '.json-ld':  'json-ld',
+  '.shacl':    'shacl',
+  '.sparql':   'sparql',
+  '.rq':       'sparql',
+  '.ru':       'sparql-update',
+  '.su':       'sparql-update',
+  '.json':     'json',
+  '.yaml':     'yaml',
+  '.yml':      'yaml',
+  '.xml':      'xml',
+  '.csv':      'csv',
+  '.tsv':      'csv',
+  '.xsl':      'xslt',
+  '.xslt':     'xslt',
+  '.xq':       'xquery',
+  '.xquery':   'xquery',
+  '.txt':      'text',
+  '.prompt':   'prompt',
+  '.md':       'databook',   // existing DataBook — blocks extracted
 };
 
 // Default roles per label (when --no-infer is NOT set)
@@ -110,7 +116,7 @@ export async function runCreate(inputArgs, opts) {
   let enc;
   try { enc = resolveEncoding(encOpt); } catch (e) { die(e.message); }
 
-  // ── Load config ───────────────────────────────────────────────────────────
+  // ── Load config ───────────────────────────────────────────────────────────────
   let config = {};
   if (configFile) {
     try {
@@ -121,7 +127,7 @@ export async function runCreate(inputArgs, opts) {
     }
   }
 
-  // ── Resolve input list (union of CLI args + config inputs:) ───────────────
+  // ── Resolve input list (union of CLI args + config inputs:) ───────────────────
   const configInputs = config.inputs ?? [];
   const resolvedInputs = resolveInputList(inputArgs, configInputs,
                                           configFile, globalFormat, noInfer, verbose);
@@ -134,7 +140,7 @@ export async function runCreate(inputArgs, opts) {
         '  Supply at least one input file, or use -o <file> to create a skeleton DataBook.');
   }
 
-  // ── Dry-run: print resolution plan ───────────────────────────────────────
+  // ── Dry-run: print resolution plan ───────────────────────────────────────────
   if (dryRun) {
     if (resolvedInputs.length > 0) {
       log('\n[create] Resolved inputs:');
@@ -152,7 +158,7 @@ export async function runCreate(inputArgs, opts) {
     return;
   }
 
-  // ── Load and process each input ───────────────────────────────────────────
+  // ── Load and process each input ───────────────────────────────────────────────
   const processedBlocks = [];
 
   for (const inp of resolvedInputs) {
@@ -171,11 +177,11 @@ export async function runCreate(inputArgs, opts) {
         const existingDb = loadDataBookFile(inp.path);
         for (const block of existingDb.blocks.filter(b => b.id)) {
           processedBlocks.push({
-            label:       block.label,
-            blockId:     block.id,
-            role:        block.role ?? inp.role,
-            content:     block.content,
-            displayOnly: block.display_only,
+            label:        block.label,
+            blockId:      block.id,
+            role:         block.role ?? inp.role,
+            content:      block.content,
+            displayOnly:  block.display_only,
           });
         }
       } catch (e) {
@@ -185,15 +191,15 @@ export async function runCreate(inputArgs, opts) {
     }
 
     processedBlocks.push({
-      label:       inp.label,
-      blockId:     inp.blockId,
-      role:        inp.role,
-      content:     content.trimEnd(),
-      displayOnly: inp.displayOnly,
+      label:        inp.label,
+      blockId:      inp.blockId,
+      role:         inp.role,
+      content:      content.trimEnd(),
+      displayOnly:  inp.displayOnly,
     });
   }
 
-  // ── Count RDF triples ─────────────────────────────────────────────────────
+  // ── Count RDF triples ─────────────────────────────────────────────────────────
   let totalTriples = 0, totalSubjects = 0;
   const hasRdf = processedBlocks.some(b => RDF_COUNTABLE.has(b.label));
   if (hasRdf) {
@@ -212,14 +218,14 @@ export async function runCreate(inputArgs, opts) {
     }
   }
 
-  // ── Detect RDF version ────────────────────────────────────────────────────
+  // ── Detect RDF version ────────────────────────────────────────────────────────
   const hasTurtle12 = processedBlocks.some(b => b.label === 'turtle12');
   const hasReification = processedBlocks
     .filter(b => b.label === 'turtle' || b.label === 'turtle12')
     .some(b => /~\s*{|\|\s*}/.test(b.content) || /rdf:reifies/.test(b.content));
   const rdfVersion = (hasTurtle12 || hasReification) ? '1.2' : '1.1';
 
-  // ── Build frontmatter ─────────────────────────────────────────────────────
+  // ── Build frontmatter ─────────────────────────────────────────────────────────
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const timestamp = now.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -283,7 +289,7 @@ export async function runCreate(inputArgs, opts) {
     warn('W_TRANSFORMER_TYPE_DEFAULT: process.transformer_type defaulted to "script"');
   }
 
-  // ── Load template ─────────────────────────────────────────────────────────
+  // ── Load template ─────────────────────────────────────────────────────────────
   const templatePath = templateFile ?? config.template ?? null;
   let templateBody;
 
@@ -299,10 +305,10 @@ export async function runCreate(inputArgs, opts) {
     templateBody = loadDefaultTemplateBody(processedBlocks, frontmatter, quiet);
   }
 
-  // ── Assemble output ───────────────────────────────────────────────────────
+  // ── Assemble output ───────────────────────────────────────────────────────────
   const output = assembleDataBook(frontmatter, processedBlocks, templateBody, quiet);
 
-  // ── Write output ──────────────────────────────────────────────────────────
+  // ── Write output ──────────────────────────────────────────────────────────────
   const outPath = resolveOutputPath(outputArg, resolvedInputs[0]?.path, force);
 
   if (!outPath || outPath === '-') {
@@ -325,12 +331,12 @@ function resolveExt(filePath) {
   const name = basename(filePath).toLowerCase();
   // Check double extensions (longest match wins)
   const doublePairs = [
-    ['.shacl.ttl',   'shacl'],
-    ['.shapes.ttl',  'shacl'],
-    ['.sparql.rq',   'sparql'],
-    ['.update.ru',   'sparql-update'],
-    ['.manifest.ttl','manifest'],
-    ['.databook.md', 'databook'],
+    ['.shacl.ttl',    'shacl'],
+    ['.shapes.ttl',   'shacl'],
+    ['.sparql.rq',    'sparql'],
+    ['.update.ru',    'sparql-update'],
+    ['.manifest.ttl', 'manifest'],
+    ['.databook.md',  'databook'],
   ];
   for (const [suffix, label] of doublePairs) {
     if (name.endsWith(suffix)) return suffix;
@@ -338,7 +344,7 @@ function resolveExt(filePath) {
   return extname(filePath).toLowerCase();
 }
 
-// ─── Input resolution ─────────────────────────────────────────────────────────
+// ─── Input resolution ────────────────────────────────────────────────────────────
 
 function resolveInputList(cliArgs, configInputs, configFile, globalFormat, noInfer, verbose) {
   const configDir = configFile ? dirname(resolve(configFile)) : process.cwd();
@@ -356,10 +362,10 @@ function resolveInputList(cliArgs, configInputs, configFile, globalFormat, noInf
       die(`E_UNRESOLVED_INPUT: cannot detect format for ${absPath}; use --format or annotate in config`);
     }
     seen.set(absPath, {
-      path:       absPath,
+      path:        absPath,
       label,
-      role:       inp.role   ?? (noInfer ? null : DEFAULT_ROLES[label] ?? 'reference'),
-      blockId:    inp.block_id ?? generateBlockId(absPath, seen),
+      role:        inp.role   ?? (noInfer ? null : DEFAULT_ROLES[label] ?? 'reference'),
+      blockId:     inp.block_id ?? generateBlockId(absPath, seen),
       displayOnly: DISPLAY_ONLY_LABELS.has(label),
     });
   }
@@ -378,10 +384,10 @@ function resolveInputList(cliArgs, configInputs, configFile, globalFormat, noInf
       die(`E_UNRESOLVED_INPUT: cannot detect format for ${absPath}; use --format or specify in config`);
     }
     seen.set(absPath, {
-      path:       absPath,
+      path:        absPath,
       label,
-      role:       noInfer ? null : DEFAULT_ROLES[label] ?? 'reference',
-      blockId:    generateBlockId(absPath, seen),
+      role:        noInfer ? null : DEFAULT_ROLES[label] ?? 'reference',
+      blockId:     generateBlockId(absPath, seen),
       displayOnly: DISPLAY_ONLY_LABELS.has(label),
     });
   }
@@ -410,7 +416,7 @@ function generateBlockId(absPath, seen) {
   return `${base}-${n}`;
 }
 
-// ─── Output DataBook assembly ─────────────────────────────────────────────────
+// ─── Output DataBook assembly ────────────────────────────────────────────────────
 
 function assembleDataBook(frontmatter, blocks, templateBody, quiet) {
   // Serialise frontmatter (strip null values)
@@ -456,11 +462,29 @@ function assembleDataBook(frontmatter, blocks, templateBody, quiet) {
   return fmBlock + '\n' + body.trimEnd() + '\n';
 }
 
+/**
+ * Render a single data block as a fenced code block.
+ *
+ * v1.4.2: annotation is emitted BEFORE the opening fence (canonical v1.2+
+ * placement). Legacy inline annotations in block.content are stripped to
+ * prevent duplication when re-wrapping older DataBooks.
+ */
 function renderBlock(block) {
+  // Strip any legacy inline <!-- databook:... --> annotations from inside
+  // the content payload so they aren't duplicated in the output.
+  const RE_INLINE_META = /^<!--\s*databook:[\w-]+:.*?-->\s*$/;
+  const cleanContent = block.content
+    .split('\n')
+    .filter(l => !RE_INLINE_META.test(l))
+    .join('\n');
+
+  // Pre-fence annotation (canonical v1.2+ placement):
+  // <!-- databook:id: block-id --> immediately before the opening fence,
+  // no blank line between annotation and fence.
   const lines = [
-    `\`\`\`${block.label}`,
     `<!-- databook:id: ${block.blockId} -->`,
-    block.content,
+    `\`\`\`${block.label}`,
+    cleanContent,
     '```',
   ];
   return lines.join('\n');
@@ -488,7 +512,7 @@ function buildDefaultTemplate(blocks, frontmatter) {
   return lines.join('\n');
 }
 
-// ─── Template loaders ─────────────────────────────────────────────────────────
+// ─── Template loaders ────────────────────────────────────────────────────────────
 
 /**
  * Load a template file and return its body text.
@@ -536,7 +560,7 @@ function loadDefaultTemplateBody(processedBlocks, frontmatter, quiet) {
   }
 }
 
-// ─── Output path resolution ───────────────────────────────────────────────────
+// ─── Output path resolution ──────────────────────────────────────────────────────
 
 function resolveOutputPath(outputArg, firstInputPath, force) {
   if (!outputArg) {
@@ -549,7 +573,7 @@ function resolveOutputPath(outputArg, firstInputPath, force) {
   return outputArg;
 }
 
-// ─── Frontmatter helpers ──────────────────────────────────────────────────────
+// ─── Frontmatter helpers ─────────────────────────────────────────────────────────
 
 /** Strip config-only operational keys before merging into frontmatter. */
 function configFieldsOnly(config) {
@@ -627,7 +651,7 @@ function stripDatabookComments(content) {
   return content.replace(/^<!--\s*databook:[^>]*-->\s*\n?/gm, '');
 }
 
-// ─── String utilities ─────────────────────────────────────────────────────────
+// ─── String utilities ────────────────────────────────────────────────────────────
 
 function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -641,7 +665,7 @@ function titleCase(s) {
   return s.replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Utilities ───────────────────────────────────────────────────────────────────
 
 function log(msg)  { process.stderr.write(msg + '\n'); }
 function warn(msg) { process.stderr.write(`warn: ${msg}\n`); }

@@ -60,15 +60,6 @@ export function loadDataBookFile(filePath) {
   } catch (e) {
     throw new Error(`file not found: ${filePath}`);
   }
-  // Normalise for cross-platform compatibility before any parsing.
-  // Strip UTF-8 BOM (added by Windows Notepad / some editors) and
-  // normalise CRLF / bare-CR line endings to LF.  This is necessary
-  // because split('\n') on a CRLF file leaves \r attached to every
-  // line, which can break YAML frontmatter detection and regex anchors
-  // in edge cases (e.g. BOM + CRLF, bare \r, mixed endings).
-  content = content.replace(/^\uFEFF/, '');
-  content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
   const db = parseDataBook(content, filePath);
   if (!db) throw new Error(`no DataBook frontmatter found in: ${filePath}`);
   return db;
@@ -81,10 +72,6 @@ export function loadDataBookFile(filePath) {
  * @returns {{ frontmatter: object, blocks: Block[], rawBody: string, filePath: string }|null}
  */
 export function parseDataBook(content, filePath = null) {
-  // Normalise line endings here too so callers passing raw strings
-  // (e.g. from HTTP responses or tests) get consistent behaviour.
-  content = content.replace(/^\uFEFF/, '');
-  content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const lines = content.split('\n');
 
   const { frontmatter, bodyStart, form } = extractFrontmatter(lines);

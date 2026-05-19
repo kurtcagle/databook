@@ -1,28 +1,29 @@
 /**
- * PATCH: commands/push.js
+ * databook push — transfer RDF blocks from a DataBook to a SPARQL triplestore.
  *
- * Changes from previous version:
+ * Changes in v1.4.2:
  *
  *   1. Empty-string --graph guard:
  *      `--graph ""` now exits with an error rather than silently falling
- *      through to the fragment-addressing rule.  Commander sets opts.graph=""
- *      when the user passes --graph "" which previously evaluated to falsy.
+ *      through to the fragment-addressing rule.
  *
- *   2. Default-graph behaviour:
- *      When no named graph IRI is determinable (no --graph, no
- *      frontmatter graph.named_graph), resolveGraphIri() now returns null
- *      instead of applying the fragment-addressing rule.  gspPut/gspPost
- *      interpret null as ?default (GSP default graph), so triples that
- *      have no explicit destination land in the triplestore's default graph
- *      rather than an auto-generated fragment IRI.
+ *   2. Meta graph push respects --merge:
+ *      Previously always used gspPut (HTTP PUT) for the #meta graph.
+ *      When --merge is set, gspPost (HTTP POST) is used instead, matching
+ *      the behaviour of data block pushes.
  *
- *      To restore the old fragment-addressing behaviour per-document, set
- *      graph.named_graph in the DataBook frontmatter, or pass --graph <iri>.
+ *   3. resolveGraphIri — restored fragment-addressing + processors.toml step:
+ *      Priority chain (v1.4.2):
+ *        1. --graph <iri>                    explicit CLI override
+ *        2. frontmatter graph.named_graph    per-document declaration
+ *        3. processors.toml named_graph      per-environment
+ *        4. {databookId}#{block.id}          fragment-addressing  ← restored
+ *        5. null → GSP ?default              bare fallback
  */
 
 import { loadDataBookFile, PUSHABLE_LABELS, blockPayload } from '../lib/parser.js';
-import { resolveEncoding, writeOutput }                    from '../lib/encoding.js';
-import { getDefaultEndpoint, inferGspEndpoint, inferUpdateEndpoint } from '../lib/config.js';
+import { resolveEncoding, writeOutput }                     from '../lib/encoding.js';
+import { getDefaultEndpoint, inferGspEndpoint, inferUpdateEndpoint, getDefaultNamedGraph } from '../lib/config.js';
 import { resolveAuth } from '../lib/auth.js';
 import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints } from '../lib/serverConfig.js';
 import { gspPut, gspPost, sparqlUpdate, contentTypeForLabel, checkResponse } from '../lib/gsp.js';
@@ -45,12 +46,12 @@ export async function runPush(filePath, opts) {
 
   if (dryRun) opts.verbose = true;
 
-  // ── Validate --graph early: reject explicit empty string ──────────────────
+  // ── Validate --graph early: reject explicit empty string ──────────────────────
   if (graphOpt !== undefined && graphOpt !== null && graphOpt.trim() === '') {
     die('--graph requires a non-empty IRI; pass no flag to use the default graph', 2);
   }
 
-  // ── HTTP publish mode (--publish) ─────────────────────────────────────────
+  // ── HTTP publish mode (--publish) ─────────────────────────────────────────────
   if (publishUrl) {
     let content;
     try { content = (await import('fs')).readFileSync(filePath, 'utf8'); }
@@ -83,7 +84,7 @@ export async function runPush(filePath, opts) {
     return;
   }
 
-  // ── Resolve named server config ───────────────────────────────────────────
+  // ── Resolve named server config ───────────────────────────────────────────────
   let serverCfg = null;
   if (serverName) {
     if (serverName === 'list') {
@@ -104,14 +105,14 @@ export async function runPush(filePath, opts) {
     }
   }
 
-  // ── Load DataBook ─────────────────────────────────────────────────────────
+  // ── Load DataBook ─────────────────────────────────────────────────────────────
   let db;
   try { db = loadDataBookFile(filePath); }
   catch (e) { die(e.message, 2); }
 
   const fm = db.frontmatter;
 
-  // ── Resolve endpoints ─────────────────────────────────────────────────────
+  // ── Resolve endpoints ─────────────────────────────────────────────────────────
   const datasetCfg     = opts.dataset ? datasetToEndpoints(opts.dataset) : null;
   const sparqlEndpoint = endpointOpt ?? serverCfg?.endpoint ?? datasetCfg?.endpoint ?? getDefaultEndpoint() ?? LOCALHOST_FUSEKI.endpoint;
 
@@ -124,7 +125,7 @@ export async function runPush(filePath, opts) {
   const updateEndpoint = inferUpdateEndpoint(sparqlEndpoint);
   const auth = resolveAuth(sparqlEndpoint, authOpt ?? serverCfg?.auth);
 
-  // ── Select blocks ─────────────────────────────────────────────────────────
+  // ── Select blocks ─────────────────────────────────────────────────────────────
   const blockIds = Array.isArray(blockIdOpts) ? blockIdOpts : [blockIdOpts].filter(Boolean);
   let selectedBlocks;
 
@@ -132,7 +133,13 @@ export async function runPush(filePath, opts) {
     selectedBlocks = [];
     for (const bid of blockIds) {
       const block = db.blocks.find(b => b.id === bid);
-      if (!block) die(`no block with id '${bid}'`, 2);
+      if (!block) {
+        const available = db.blocks.map(b => b.id).filter(Boolean);
+        const hint = available.length > 0
+          ? `\n  Available block IDs: ${available.join(', ')}`
+          : '\n  No named blocks found in document. Check that <!-- databook:id: ... --> annotations are present.';
+        die(`no block with id '${bid}'${hint}`, 2);
+      }
       selectedBlocks.push(block);
     }
   } else {
@@ -144,7 +151,12 @@ export async function runPush(filePath, opts) {
     ? graphOpt : undefined;
 
   if (effectiveGraphOpt && selectedBlocks.length > 1) {
-    die('--graph requires exactly one block; multiple blocks selected', 2);
+    const ids = selectedBlocks.map(b => b.id ?? '(unnamed)').join(', ');
+    die(
+      `--graph applies to a single block but ${selectedBlocks.length} blocks are selected (${ids}).\n` +
+      `  Use --block-id <id> to target a specific block.`,
+      2
+    );
   }
 
   const pushableBlocks = selectedBlocks.filter(b => PUSHABLE_LABELS.has(b.label));
@@ -155,7 +167,7 @@ export async function runPush(filePath, opts) {
       log(`[push] SKIP  block '${b.id ?? '(unlabelled)'}' (${b.label}) — not a pushable type`);
   }
 
-  // ── Execute pushes ─────────────────────────────────────────────────────────
+  // ── Execute pushes ────────────────────────────────────────────────────────────
   let pushed = 0, failed = 0;
   const databookId = fm.id;
 
@@ -164,7 +176,7 @@ export async function runPush(filePath, opts) {
     const payload  = blockPayload(block);
 
     if (block.label === 'sparql-update') {
-      await executeSparqlUpdate(block, payload, updateEndpoint, auth, dryRun, verbose);
+      await executeSparlqUpdate(block, payload, updateEndpoint, auth, dryRun, verbose);
       pushed++;
       continue;
     }
@@ -194,17 +206,21 @@ export async function runPush(filePath, opts) {
     }
   }
 
-  // ── Push metadata graph (--meta, default on) ──────────────────────────────
+  // ── Push metadata graph (--meta, default on) ──────────────────────────────────
   if (meta) {
     const metaIri = databookId ? `${databookId}#meta` : null;
     if (metaIri) {
       const metaTurtle = frontmatterToTurtle(fm, db.filePath);
       if (verbose || dryRun) {
-        logBlockOp('PUT', gspEndpoint, metaIri, 'text/turtle', metaTurtle, dryRun, true);
+        // v1.4.2: meta graph method follows --merge flag
+        logBlockOp(merge ? 'POST' : 'PUT', gspEndpoint, metaIri, 'text/turtle', metaTurtle, dryRun, true);
       }
       if (!dryRun) {
         try {
-          const result = await gspPut(gspEndpoint, metaIri, metaTurtle, 'text/turtle', auth);
+          // v1.4.2: meta graph respects --merge flag
+          const result = merge
+            ? await gspPost(gspEndpoint, metaIri, metaTurtle, 'text/turtle', auth)
+            : await gspPut(gspEndpoint, metaIri, metaTurtle, 'text/turtle', auth);
           checkResponse(result, 'meta graph');
           if (verbose) log(`[push]       Status: ${result.status}`);
         } catch (e) {
@@ -214,7 +230,7 @@ export async function runPush(filePath, opts) {
     }
   }
 
-  // ── Summary ───────────────────────────────────────────────────────────────
+  // ── Summary ───────────────────────────────────────────────────────────────────
   if (verbose || dryRun) {
     const metaNote = meta && databookId ? '  (1 meta graph)' : '';
     log(`[push] ${pushed} block${pushed !== 1 ? 's' : ''} pushed, ${skippedBlocks.length} skipped, ${failed} failed${metaNote}`);
@@ -229,15 +245,12 @@ export async function runPush(filePath, opts) {
 /**
  * Determine the target named graph IRI for a block.
  *
- * Priority:
- *   1. Explicit --graph <iri>  (already validated as non-empty by caller)
- *   2. frontmatter graph.named_graph  (single-block only)
- *   3. null → GSP ?default (default graph)
- *
- * Previously step 3 applied a fragment-addressing rule.  That was changed
- * so that blocks without an explicit graph destination land in the default
- * graph rather than an auto-generated named graph.  Set graph.named_graph
- * in frontmatter to restore per-document named-graph assignment.
+ * Priority (v1.4.2):
+ *   1. Explicit --graph <iri>          per-invocation CLI override
+ *   2. frontmatter graph.named_graph   per-document declaration
+ *   3. processors.toml named_graph     per-environment (getDefaultNamedGraph())
+ *   4. {databookId}#{block.id}         fragment-addressing  ← restored in v1.4.2
+ *   5. null → GSP ?default             bare fallback
  */
 function resolveGraphIri(block, graphOpt, fm, databookId, filePath, totalBlocks = 1) {
   // 1. Explicit --graph
@@ -246,11 +259,21 @@ function resolveGraphIri(block, graphOpt, fm, databookId, filePath, totalBlocks 
   // 2. Frontmatter graph.named_graph (single-block convenience)
   if (fm.graph?.named_graph && totalBlocks === 1) return fm.graph.named_graph;
 
-  // 3. Default graph  (null → GSP ?default in gsp.js)
+  // 3. processors.toml default_endpoint.named_graph (per-environment)
+  //    Set named_graph = "urn:x-arq:DefaultGraph" to route all pushes to
+  //    Jena's default graph without per-document frontmatter.
+  const configGraph = getDefaultNamedGraph();
+  if (configGraph) return configGraph;
+
+  // 4. Fragment-addressing: {databookId}#{block.id}
+  //    Mirrors pull's resolveGraphIris() — push/pull symmetric by default.
+  if (databookId && block.id) return `${databookId}#${block.id}`;
+
+  // 5. Null → GSP ?default
   return null;
 }
 
-async function executeSparqlUpdate(block, payload, updateEndpoint, auth, dryRun, verbose) {
+async function executeSparlqUpdate(block, payload, updateEndpoint, auth, dryRun, verbose) {
   if (verbose || dryRun) {
     log(`[push] SPARQL-UPDATE  ${updateEndpoint}`);
     if (dryRun) log(`[push]       [not sent]`);
@@ -272,5 +295,5 @@ function logBlockOp(method, endpoint, graphIri, contentType, payload, dryRun, is
   if (dryRun) log(`[push]       Status: [not sent]`);
 }
 
-function log(msg)         { process.stderr.write(msg + '\n'); }
-function die(msg, code=2) { process.stderr.write(`error: ${msg}\n`); process.exit(code); }
+function log(msg)          { process.stderr.write(msg + '\n'); }
+function die(msg, code=2)  { process.stderr.write(`error: ${msg}\n`); process.exit(code); }

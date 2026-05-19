@@ -34,8 +34,8 @@ graph:
 
 16 triples, 4 distinct subjects.
 
-```turtle
 <!-- databook:id: sensors-block -->
+```turtle
 PREFIX dct:  <http://purl.org/dc/terms/>
 PREFIX geo:  <http://www.w3.org/2003/01/geo/wgs84_pos#>
 PREFIX obs:  <https://w3id.org/databook/test/observatory-v1#>
