@@ -22,7 +22,7 @@ node bin/databook.js <command>
 
 ## Databook Property Reference Guide
 
-A guide to the YAML Front Matter and data block properties for databooks is available [here](databook-property-reference.md).
+A guide to the YAML Front Matter and data block properties for databooks is available [here](databook-property-reference.databook.md).
 
 ---
 
