@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#2a6e5a"/>
+  <!-- Book outline -->
+  <rect x="22" y="16" width="72" height="90" rx="7" fill="none" stroke="#ffffff" stroke-width="6"/>
+  <!-- Page lines -->
+  <path d="M38 44h40M38 58h40M38 72h28" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"/>
+  <!-- Arrow accent (semantic/compiled) -->
+  <path d="M84 28l18 14-18 14" stroke="#4db892" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

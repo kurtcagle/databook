@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DataBook Viewer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 280px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      background: #f7f5f1;
+      color: #1a1814;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background: #fff;
+      border-bottom: 1px solid #dbd6cf;
+    }
+
+    header svg { color: #2a6e5a; flex-shrink: 0; }
+
+    .brand {
+      font-weight: 700;
+      font-size: 13px;
+      color: #2a6e5a;
+      letter-spacing: .02em;
+    }
+
+    .version {
+      margin-left: auto;
+      font-size: 10px;
+      color: #8a857e;
+      font-family: monospace;
+    }
+
+    /* Status card */
+    .status {
+      padding: 14px;
+      border-bottom: 1px solid #dbd6cf;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot--active { background: #2a6e5a; }
+    .dot--idle   { background: #bab4ac; }
+
+    .status-label {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .status-label--active { color: #2a6e5a; }
+    .status-label--idle   { color: #8a857e; }
+
+    .doc-info {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #e8f3ef;
+      border: 1px solid #b8d8cc;
+      border-radius: 4px;
+    }
+
+    .doc-title {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: #1a1814;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .doc-meta {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #4a9a80;
+      font-family: monospace;
+    }
+
+    /* Toggles */
+    .controls {
+      padding: 12px 14px;
+      border-bottom: 1px solid #dbd6cf;
+    }
+
+    .controls-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: #8a857e;
+      margin-bottom: 8px;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .toggle-row:last-child { margin-bottom: 0; }
+
+    .toggle-label {
+      font-size: 12.5px;
+      color: #1a1814;
+    }
+
+    .toggle-key {
+      display: inline-block;
+      padding: 1px 5px;
+      background: #f0ede8;
+      border: 1px solid #dbd6cf;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #4a4540;
+      margin-left: 4px;
+    }
+
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #f0ede8;
+      border: 1px solid #dbd6cf;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #4a4540;
+      cursor: pointer;
+      transition: all .12s;
+    }
+
+    .toggle-btn:hover { background: #dbd6cf; }
+
+    .toggle-btn.on {
+      background: #e8f3ef;
+      border-color: #b8d8cc;
+      color: #2a6e5a;
+    }
+
+    .toggle-indicator {
+      width: 28px; height: 16px;
+      background: #dbd6cf;
+      border-radius: 8px;
+      position: relative;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+
+    .toggle-indicator::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 2px;
+      width: 12px; height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      transition: transform .15s;
+    }
+
+    .toggle-indicator.on {
+      background: #2a6e5a;
+    }
+
+    .toggle-indicator.on::after {
+      transform: translateX(12px);
+    }
+
+    /* Shortcuts section */
+    .shortcuts {
+      padding: 10px 14px 14px;
+    }
+
+    .shortcuts-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: #8a857e;
+      margin-bottom: 8px;
+    }
+
+    .shortcut {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #4a4540;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      background: #f0ede8;
+      border: 1px solid #dbd6cf;
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #1a1814;
+    }
+
+    /* Not active state */
+    .not-active {
+      padding: 24px 14px;
+      text-align: center;
+      color: #8a857e;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .not-active p { margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="1.5" width="13" height="17" rx="1.75" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M6 6h8M6 9.5h8M6 13h5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M15.5 5l2.5 2-2.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand">DataBook Viewer</span>
+    <span class="version">v1.0.0</span>
+  </header>
+
+  <!-- Active state -->
+  <div id="view-active" style="display:none">
+    <div class="status">
+      <div class="status-row">
+        <div class="dot dot--active"></div>
+        <span class="status-label status-label--active">DataBook detected</span>
+      </div>
+      <div class="doc-info" id="doc-info">
+        <div class="doc-title" id="doc-title">—</div>
+        <div class="doc-meta" id="doc-meta"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-title">View Controls</div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Frontmatter <span class="toggle-key">F</span></span>
+        <div class="toggle-indicator on" id="ind-fm"></div>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Hidden blocks <span class="toggle-key">H</span></span>
+        <div class="toggle-indicator" id="ind-hidden"></div>
+      </div>
+    </div>
+
+    <div class="shortcuts">
+      <div class="shortcuts-title">Keyboard Shortcuts</div>
+      <div class="shortcut">
+        <span>Toggle frontmatter</span>
+        <kbd>F</kbd>
+      </div>
+      <div class="shortcut">
+        <span>Toggle hidden blocks</span>
+        <kbd>H</kbd>
+      </div>
+    </div>
+  </div>
+
+  <!-- Idle state -->
+  <div id="view-idle">
+    <div class="status">
+      <div class="status-row">
+        <div class="dot dot--idle"></div>
+        <span class="status-label status-label--idle">No DataBook on this page</span>
+      </div>
+    </div>
+    <div class="not-active">
+      Open a <code>.databook.md</code> file locally or via a raw URL to activate the viewer.
+      <p>The extension auto-detects DataBook content by checking the YAML frontmatter <code>type:</code> field.</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
