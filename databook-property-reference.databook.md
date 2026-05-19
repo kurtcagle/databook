@@ -37,6 +37,8 @@ shapes:
   - https://w3id.org/databook/spec/v1.2/property-reference#block-zone-shapes
 ---
 
+---
+
 # Databook Property Reference Guide
 
 ---
