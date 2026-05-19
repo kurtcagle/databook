@@ -37,6 +37,10 @@ shapes:
   - https://w3id.org/databook/spec/v1.2/property-reference#block-zone-shapes
 ---
 
+# Databook Property Reference Guide
+
+---
+
 ## Overview
 
 This DataBook is the normative property reference for the DataBook specification v1.2. It documents every property defined in three zones of a DataBook document:
