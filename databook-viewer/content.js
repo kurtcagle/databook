@@ -513,33 +513,62 @@
       : '';
 
     const execMeta = (endpoint || cache)
-      ? `<span class="${NS}-block-exec-meta">${endpoint ? `endpoint: <code>${esc(endpoint)}</code>` : ''}${cache ? ` · cache: ${esc(cache)}` : ''}</span>`
+      ? `<span class="${NS}-block-exec-meta">${
+          endpoint ? `endpoint: <code>${esc(endpoint)}</code>` : ''
+        }${cache ? ` · cache: ${esc(cache)}` : ''}</span>`
+      : '';
+
+    // Executed run-affordance button (only when endpoint is declared)
+    const execBtn = (isExecuted && endpoint)
+      ? `<button class="${NS}-exec-btn" title="Endpoint: ${esc(endpoint)}" aria-label="Executed block">
+           <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+             <circle cx="5.5" cy="5.5" r="5" stroke="currentColor" stroke-width="1.2"/>
+             <path d="M4 3.5l4 2-4 2V3.5Z" fill="currentColor"/>
+           </svg>
+         </button>`
       : '';
 
     const authorityBadge = authority
       ? `<span class="${NS}-badge ${NS}-badge--authority" title="Asserting authority">${esc(authority)}</span>`
       : '';
 
+    // Copy button — always in block header; text extracted from rendered <code>
+    const copyBtn = `<button class="${NS}-copy-btn" title="Copy block content" aria-label="Copy">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+        <rect x="4.5" y="4.5" width="7.5" height="7.5" rx="1.25" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M3 8.5H2A1.5 1.5 0 0 1 .5 7V2A1.5 1.5 0 0 1 2 .5h5A1.5 1.5 0 0 1 8.5 2v1"
+              stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>`;
+
+    // ── Hidden block: inline styles are belt-and-suspenders ───────────────
+    // CSS class alone can be unreliable in content script injection context.
     const hiddenPlaceholder = isHidden ? `
-<div class="${NS}-hidden-ph" aria-hidden="true">
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M4 7h6M7 4v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+<div class="${NS}-hidden-ph" aria-hidden="true" style="display:flex">
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M1.5 7C1.5 7 3.5 3 7 3s5.5 4 5.5 4-2 4-5.5 4S1.5 7 1.5 7Z" stroke="currentColor" stroke-width="1.4"/>
+    <circle cx="7" cy="7" r="1.75" stroke="currentColor" stroke-width="1.4"/>
+    <path d="M2 2l10 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>
   <span>Hidden block${id ? ` · <code>${esc(id)}</code>` : ''} · <kbd>H</kbd> to reveal</span>
 </div>` : '';
 
-    // Highlighted code content
+    const bodyStyle = isHidden ? ' style="display:none"' : '';
+
     const codeHtml = highlightCode(content, label);
 
     return `
 <div class="${blockClasses.join(' ')}" ${id ? `id="${NS}-block-${esc(id)}"` : ''} data-block-id="${esc(id)}" data-mode="${esc(mode)}">
   <div class="${NS}-block-hd">
-    <span class="${NS}-block-lang">${esc(langLabel(label))}</span>
+    ${execBtn}<span class="${NS}-block-lang">${esc(langLabel(label))}</span>
     ${lbl ? `<span class="${NS}-block-lbl">${esc(lbl)}</span>` : ''}
     ${id  ? `<span class="${NS}-block-id">#${esc(id)}</span>`  : ''}
     <span class="${NS}-block-badges">${modeBadge}${authorityBadge}</span>
     ${execMeta}
+    ${copyBtn}
   </div>
   ${hiddenPlaceholder}
-  <div class="${NS}-block-body">
+  <div class="${NS}-block-body"${bodyStyle}>
     <pre class="${NS}-code ${NS}-code--${esc(label || 'text')}"><code>${codeHtml}</code></pre>
   </div>
 </div>`;
@@ -631,11 +660,21 @@
       </svg>
       Outline
     </span>
-    <span class="${NS}-sb-count">${items.length}</span>
+    <span class="${NS}-sb-count" id="${NS}-sb-count">${items.length}</span>
+  </div>
+  <div class="${NS}-sb-search-wrap">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <input class="${NS}-sb-search" id="${NS}-sb-search"
+           type="search" placeholder="Filter… (/)" aria-label="Filter outline items"
+           autocomplete="off" spellcheck="false">
   </div>
   <nav class="${NS}-ol-list" id="${NS}-ol-list" aria-label="Document sections">
     ${rows}
   </nav>
+  <div class="${NS}-sb-empty" id="${NS}-sb-empty" style="display:none">No matches</div>
 </aside>`;
   }
 
@@ -797,7 +836,15 @@
     }
 
     function applyHidden() {
-      body.classList.toggle(`${NS}-reveal-hidden`, showHidden);
+      // Drive visibility explicitly via inline styles — more reliable than
+      // CSS class alone in content script injection contexts.
+      document.querySelectorAll(`.${NS}-block--hidden .${NS}-block-body`).forEach(el => {
+        el.style.display = showHidden ? 'block' : 'none';
+        el.style.opacity = showHidden ? '0.55'  : '';
+      });
+      document.querySelectorAll(`.${NS}-block--hidden .${NS}-hidden-ph`).forEach(el => {
+        el.style.display = showHidden ? 'none' : 'flex';
+      });
       btnHidden.setAttribute('aria-pressed', String(showHidden));
       btnHidden.classList.toggle(`${NS}-btn--on`, showHidden);
       localStorage.setItem(`${NS}:showHidden`, String(showHidden));
@@ -824,11 +871,91 @@
       if (e.key === 'f' || e.key === 'F') { showFm      = !showFm;      applyFm();      }
       if (e.key === 'h' || e.key === 'H') { showHidden  = !showHidden;  applyHidden();  }
       if (e.key === 'o' || e.key === 'O') { showOutline = !showOutline; applyOutline(); }
+      if (e.key === '/') {
+        e.preventDefault();
+        const s = document.getElementById(`${NS}-sb-search`);
+        if (s) { s.focus(); s.select(); }
+      }
     });
 
     applyFm();
     applyHidden();
     applyOutline();
+  }
+
+  // ── Block interactions ─────────────────────────────────────────────────────
+  // Wired after DOM insertion — copy buttons and any future per-block UI.
+
+  function initBlockInteractions() {
+    document.querySelectorAll(`.${NS}-copy-btn`).forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        e.preventDefault();
+        const blockEl = btn.closest(`.${NS}-block`);
+        const codeEl  = blockEl && blockEl.querySelector('code');
+        if (!codeEl) return;
+        // innerText gives plain text from highlighted HTML
+        const text = codeEl.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.classList.add(`${NS}-copy-btn--done`);
+          btn.setAttribute('title', 'Copied!');
+          btn.querySelector('svg').outerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M2 7l3.5 3.5L11 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>`;
+          setTimeout(() => {
+            btn.classList.remove(`${NS}-copy-btn--done`);
+            btn.setAttribute('title', 'Copy block content');
+            btn.querySelector('svg').outerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="4.5" y="4.5" width="7.5" height="7.5" rx="1.25" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M3 8.5H2A1.5 1.5 0 0 1 .5 7V2A1.5 1.5 0 0 1 2 .5h5A1.5 1.5 0 0 1 8.5 2v1"
+                    stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>`;
+          }, 2000);
+        } catch {
+          // Clipboard API blocked — fall back to selection
+          const range = document.createRange();
+          range.selectNode(codeEl);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+        }
+      });
+    });
+  }
+
+  // ── Sidebar search / filter ────────────────────────────────────────────────
+
+  function initSidebarSearch() {
+    const input   = document.getElementById(`${NS}-sb-search`);
+    const counter = document.getElementById(`${NS}-sb-count`);
+    const empty   = document.getElementById(`${NS}-sb-empty`);
+    if (!input) return;
+
+    const total = document.querySelectorAll(`[data-ol-target]`).length;
+
+    input.addEventListener('input', () => {
+      const q = input.value.toLowerCase().trim();
+      const items = document.querySelectorAll(`[data-ol-target]`);
+      let visible = 0;
+
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        const show = !q || text.includes(q);
+        item.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      if (counter) counter.textContent = q ? `${visible}/${total}` : total;
+      if (empty)   empty.style.display  = (q && visible === 0) ? 'block' : 'none';
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.blur();
+      }
+    });
   }
 
   // ── Message listener (popup) ───────────────────────────────────────────────
@@ -865,5 +992,7 @@
   document.body.className = `${NS}-body`;
   initToggles();
   initScrollTracking();
+  initBlockInteractions();
+  initSidebarSearch();
 
 })();

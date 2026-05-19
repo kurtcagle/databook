@@ -1008,3 +1008,119 @@
   .dbv-sidebar { display: none; }
   .dbv-main    { max-width: none; }
 }
+
+/* ── Copy button ──────────────────────────────────────────────────────────── */
+
+.dbv-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--dbv-radius);
+  color: var(--dbv-ink-faint);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.dbv-copy-btn:hover {
+  background: var(--dbv-code-bg);
+  border-color: var(--dbv-border);
+  color: var(--dbv-ink-mid);
+}
+
+.dbv-copy-btn--done {
+  color: var(--dbv-accent);
+  background: var(--dbv-accent-light);
+  border-color: color-mix(in srgb, var(--dbv-accent) 30%, transparent);
+}
+
+/* ── Executed block indicator ─────────────────────────────────────────────── */
+
+.dbv-block--executed {
+  border-left: 3px solid var(--dbv-badge-executed);
+}
+
+.dbv-exec-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-right: 4px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--dbv-badge-executed) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dbv-badge-executed) 30%, transparent);
+  border-radius: 50%;
+  color: var(--dbv-badge-executed);
+  cursor: default;
+  transition: background .12s;
+}
+
+.dbv-exec-btn:hover {
+  background: color-mix(in srgb, var(--dbv-badge-executed) 25%, transparent);
+}
+
+/* ── Sidebar search input ─────────────────────────────────────────────────── */
+
+.dbv-sb-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--dbv-border);
+  background: var(--dbv-surface);
+  color: var(--dbv-ink-faint);
+  flex-shrink: 0;
+}
+
+.dbv-sb-search {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--dbv-font-ui);
+  font-size: 12px;
+  color: var(--dbv-ink);
+  caret-color: var(--dbv-accent);
+}
+
+.dbv-sb-search::placeholder {
+  color: var(--dbv-ink-faint);
+  font-size: 11.5px;
+}
+
+/* Clear button (browser default for type=search) */
+.dbv-sb-search::-webkit-search-cancel-button {
+  cursor: pointer;
+  opacity: .5;
+  filter: var(--dbv-search-clear-filter, none);
+}
+
+.dbv-sb-empty {
+  padding: 12px;
+  font-family: var(--dbv-font-ui);
+  font-size: 11.5px;
+  color: var(--dbv-ink-faint);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Focused search highlights the wrapper */
+.dbv-sb-search-wrap:focus-within {
+  color: var(--dbv-accent);
+  background: var(--dbv-accent-light);
+  border-bottom-color: color-mix(in srgb, var(--dbv-accent) 25%, transparent);
+}
+
+.dbv-sb-search-wrap:focus-within .dbv-sb-search::placeholder {
+  color: color-mix(in srgb, var(--dbv-accent) 50%, transparent);
+}
