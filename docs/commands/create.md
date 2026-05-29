@@ -14,6 +14,8 @@ databook create [inputs...] [options]
 
 Input files may also be fragment references (`file.databook.md#block-id`) to extract individual blocks from existing DataBooks.
 
+A databook with just a data input file will use the name of that input as the base name for the output file, unless otherwise specified. If used with no input files, then the output option -o MUST be used.
+
 ## Options
 
 | Option | Description |
