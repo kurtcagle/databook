@@ -668,6 +668,14 @@ ORDER BY STR(?g)
   const title   = metaFm.title   ?? 'Recovered DataBook';
   const version = metaFm.version ?? '1.0.0';
   const created = metaFm.created ?? isoDate;
+  const dbPath  = metaFm.path    ?? null;
+
+  // Derive default output filename from path terminal segment (v1.5.0).
+  // Falls back to a sanitised IRI slug when no path is recorded.
+  const defaultStem = dbPath
+    ? dbPath.split('/').pop()
+    : databookId.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').slice(-60);
+  const defaultOutPath = `${defaultStem}.databook.md`;
 
   const frontmatter = [
     '---',
@@ -701,6 +709,12 @@ ORDER BY STR(?g)
     atomicWriteEncoded(outPath, output, enc);
     if (!quiet) process.stderr.write(
       `[pull] Recovered ${blocks.length} block${blocks.length !== 1 ? 's' : ''} → ${outPath}\n`
+    );
+  } else if (!outPath) {
+    // Default: write to terminal-segment filename derived from path (v1.5.0)
+    atomicWriteEncoded(defaultOutPath, output, enc);
+    if (!quiet) process.stderr.write(
+      `[pull] Recovered ${blocks.length} block${blocks.length !== 1 ? 's' : ''} → ${defaultOutPath}\n`
     );
   } else {
     writeOutput(null, output, enc);
