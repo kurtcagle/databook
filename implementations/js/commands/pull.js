@@ -2,10 +2,14 @@
  * databook pull — retrieve RDF from a SPARQL triplestore into a DataBook.
  * Spec: https://w3id.org/databook/specs/cli-pull
  *
- * Three modes:
+ * Four modes:
  *   Mode 1 — Named graph fetch (GSP GET)
  *   Mode 2 — External query file (--query)
  *   Mode 3 — Fragment-ref embedded SPARQL block (--fragment)
+ *   Mode 4 — Full document recovery by DataBook IRI (--databook-id)
+ *
+ * v1.4.2: resolveGraphIris() checks processors.toml default_endpoint.named_graph
+ *         as step 3. --databook-id added for source-file-free roundtripping.
  */
 
 import { readFileSync }                                  from 'fs';
@@ -15,7 +19,7 @@ import { join, basename, resolve }                        from 'path';
 import crypto                                             from 'crypto';
 import { loadDataBookFile, blockPayload }                 from '../lib/parser.js';
 import { fetchDatabook }                                  from '../lib/fetchDatabook.js';
-import { getDefaultEndpoint, inferGspEndpoint } from '../lib/config.js';
+import { getDefaultEndpoint, inferGspEndpoint, getDefaultNamedGraph } from '../lib/config.js';
 import { resolveAuth } from '../lib/auth.js';
 import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints } from '../lib/serverConfig.js';
 import { gspGet, sparqlQuery, detectQueryType, acceptForQueryType, checkResponse } from '../lib/gsp.js';
@@ -23,8 +27,8 @@ import { computeStats } from '../lib/stats.js';
 
 /**
  * Run the `databook pull` command.
- * @param {string} filePath   - DataBook file path (always required)
- * @param {object} opts
+ * @param {string|null} filePath  - DataBook file path (not required when --databook-id is set)
+ * @param {object}      opts
  */
 export async function runPull(filePath, opts) {
   const {
@@ -35,6 +39,7 @@ export async function runPull(filePath, opts) {
     query: queryFile,
     queryRef,
     blockId,
+    databookId,
     wrap = false,
     infer = false,
     format: formatOpt,
@@ -47,6 +52,32 @@ export async function runPull(filePath, opts) {
   } = opts;
   let enc;
   try { enc = resolveEncoding(encOpt); } catch (e) { die(e.message); }
+
+  // ── Mode 4: full document recovery from DataBook IRI ──────────────────────
+  // --databook-id bypasses source file loading entirely; endpoint is the only
+  // required input.
+  if (databookId) {
+    // Resolve endpoint (same chain as other modes, but no source file needed)
+    let serverCfg4 = null;
+    if (serverName && serverName !== 'list') {
+      try { serverCfg4 = resolveServer(serverName); } catch (e) { die(e.message, 2); }
+    }
+    const datasetCfg4    = opts.dataset ? datasetToEndpoints(opts.dataset) : null;
+    const sparqlEp4      = endpointOpt ?? serverCfg4?.endpoint ?? datasetCfg4?.endpoint
+                        ?? getDefaultEndpoint() ?? LOCALHOST_FUSEKI.endpoint;
+    const auth4          = resolveAuth(sparqlEp4, authOpt ?? serverCfg4?.auth);
+
+    await pullByDatabookId({
+      databookId, sparqlEndpoint: sparqlEp4, formatOpt, auth: auth4,
+      outPath, enc, verbose, dryRun, quiet: opts.quiet,
+    });
+    return;
+  }
+
+  // Source file is required for all other modes
+  if (!filePath) {
+    die('pull requires a source DataBook file, or --databook-id <iri> for source-file-free recovery', 2);
+  }
 
   // ── Validate mutual exclusions ─────────────────────────────────────────────
   if (fragment && queryFile)   die('--query and --fragment are mutually exclusive', 2);
@@ -387,16 +418,22 @@ async function pullNamedGraphs(endpoint, graphIris, formatOpt, auth, verbose, dr
 // ─── Named graph IRI resolution (Mode 1) ──────────────────────────────────────
 
 function resolveGraphIris(graphOpts, fm, db) {
+  // 1. Explicit --graph flag(s)
   if (graphOpts && graphOpts.length > 0) return Array.isArray(graphOpts) ? graphOpts : [graphOpts];
 
-  // From frontmatter
+  // 2. Frontmatter graph.named_graph
   if (fm.graph?.named_graph) return [fm.graph.named_graph];
 
-  // Fragment-addressing rule: {document.id}#{first-pushable-block-id}
+  // 3. processors.toml default_endpoint.named_graph (per-environment)
+  //    Mirrors push's resolveGraphIri() for push/pull symmetry.
+  const configGraph = getDefaultNamedGraph();
+  if (configGraph) return [configGraph];
+
+  // 4. Fragment-addressing rule: {document.id}#{first-block-id}
   const firstBlock = db.blocks.find(b => b.id);
   if (fm.id && firstBlock) return [`${fm.id}#${firstBlock.id}`];
 
-  die('no graph IRI — supply --graph or add graph.named_graph to frontmatter', 2);
+  die('no graph IRI \u2014 supply --graph or add graph.named_graph to frontmatter', 2);
 }
 
 // ─── In-place block replacement ───────────────────────────────────────────────
@@ -491,6 +528,197 @@ function updateProcessStamp(content) {
   content = content.replace(/(timestamp:\s*)[\d\-T:.Z]+/, `$1${ts}`);
   content = content.replace(/(transformer_type:\s*)[\w"']+/, `$1service`);
   return content;
+}
+
+// ─── Mode 4: full document recovery by DataBook IRI ─────────────────────────────
+
+/**
+ * Recover a complete DataBook from the triplestore using only its IRI.
+ *
+ * Steps:
+ *   1. Query {id}#meta for title, version, created and provenance.
+ *   2. SPARQL-enumerate all named graphs with prefix {id}# (excl. #meta).
+ *   3. GSP GET each block graph as Turtle.
+ *   4. Assemble a reconstructed DataBook and write to --output / stdout.
+ */
+async function pullByDatabookId({ databookId, sparqlEndpoint, formatOpt, auth, outPath, enc, verbose, dryRun, quiet }) {
+  const metaIri = `${databookId}#meta`;
+  if (verbose) log(`[pull] --databook-id ${databookId}`);
+
+  // ── Step 1: fetch metadata from #meta ──────────────────────────────────────
+  const metaQuery = `
+PREFIX build: <https://w3id.org/databook/ns#>
+PREFIX dct:   <http://purl.org/dc/terms/>
+PREFIX owl:   <http://www.w3.org/2002/07/owl#>
+PREFIX prov:  <http://www.w3.org/ns/prov#>
+
+SELECT ?title ?version ?created WHERE {
+  GRAPH <${metaIri}> {
+    <${databookId}> a build:DataBook .
+    OPTIONAL { <${databookId}> dct:title           ?title   }
+    OPTIONAL { <${databookId}> owl:versionInfo      ?version }
+    OPTIONAL { <${databookId}> dct:created          ?created }
+  }
+}
+LIMIT 1
+`.trim();
+
+  let metaFm = { title: null, version: null, created: null };
+
+  if (dryRun) {
+    log(`[pull] [dry-run] Would query meta graph: ${metaIri}`);
+    log(`[pull] [dry-run] Would enumerate graphs with prefix ${databookId}#`);
+    log(`[pull] [dry-run] Would pull each block and assemble DataBook`);
+    log(`[pull] [dry-run] Output: ${outPath ?? 'stdout'}`);
+    return;
+  }
+
+  const metaResult = await sparqlQuery(sparqlEndpoint, metaQuery,
+    'application/sparql-results+json', auth);
+
+  if (metaResult.ok) {
+    try {
+      const mp = JSON.parse(metaResult.body);
+      const mb = mp?.results?.bindings?.[0];
+      if (mb) {
+        metaFm.title   = mb.title?.value   ?? null;
+        metaFm.version = mb.version?.value ?? null;
+        metaFm.created = mb.created?.value ?? null;
+      }
+    } catch { /* ignore */ }
+  } else if (!quiet) {
+    process.stderr.write(
+      `warn: meta graph not found (${metaResult.status}) — proceeding with inferred frontmatter.\n`
+    );
+  }
+
+  if (verbose) log(`[pull] Meta: title="${metaFm.title ?? '(none)'}" ver=${metaFm.version ?? '(none)'}`);
+
+  // ── Step 2: enumerate block graphs ────────────────────────────────────────
+  const graphEnumQuery = `
+SELECT DISTINCT ?g WHERE {
+  GRAPH ?g { ?s ?p ?o }
+  FILTER(STRSTARTS(STR(?g), "${databookId}#"))
+  FILTER(STR(?g) != "${metaIri}")
+}
+ORDER BY STR(?g)
+`.trim();
+
+  const enumResult = await sparqlQuery(sparqlEndpoint, graphEnumQuery,
+    'application/sparql-results+json', auth);
+  checkResponse(enumResult, `graph enumeration for <${databookId}>`);
+
+  let blockGraphs = [];
+  try {
+    const ep = JSON.parse(enumResult.body);
+    blockGraphs = (ep?.results?.bindings ?? []).map(b => b.g?.value).filter(Boolean);
+  } catch (e) {
+    die(`could not parse graph enumeration response: ${e.message}`, 1);
+  }
+
+  if (blockGraphs.length === 0) {
+    die(
+      `no block graphs found for <${databookId}>.\n` +
+      `  Verify the DataBook was pushed to this endpoint and has not been cleared.\n` +
+      `  Use: databook list -e ${sparqlEndpoint}`,
+      5
+    );
+  }
+
+  if (verbose) log(`[pull] Found ${blockGraphs.length} block graph(s)`);
+
+  // ── Step 3: GSP GET each block ─────────────────────────────────────────────
+  let gspEndpoint;
+  try   { gspEndpoint = inferGspEndpoint(sparqlEndpoint); }
+  catch { die(`cannot infer GSP endpoint from '${sparqlEndpoint}'`, 2); }
+
+  const accept     = formatOpt === 'trig' ? 'application/trig' : 'text/turtle';
+  const fenceLabel = formatOpt === 'trig' ? 'trig' : (formatOpt ?? 'turtle');
+
+  const blocks = [];
+  for (const graphIri of blockGraphs) {
+    // Derive block id from IRI fragment: {databookId}#my-block → my-block
+    const blockId = graphIri.startsWith(databookId + '#')
+      ? graphIri.slice(databookId.length + 1)
+      : graphIri.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+    if (verbose) log(`[pull] GET  ${gspEndpoint}  ?graph=${graphIri}`);
+
+    const r = await gspGet(gspEndpoint, graphIri, accept, auth);
+
+    if (r.status === 404) {
+      if (!quiet) process.stderr.write(`warn: block graph not found: ${graphIri} (skipped)\n`);
+      continue;
+    }
+    checkResponse(r, `block graph ${graphIri}`);
+    if (verbose) log(`[pull]   Status: ${r.status}  (${r.body.split('\n').length} lines)`);
+
+    blocks.push({ blockId, content: r.body.trimEnd(), label: fenceLabel, graphIri });
+  }
+
+  if (blocks.length === 0) {
+    die(`all block graphs returned 404 — DataBook may have been cleared`, 5);
+  }
+
+  // ── Step 4: assemble reconstructed DataBook ────────────────────────────────
+  const now      = new Date();
+  const isoDate  = now.toISOString().slice(0, 10);
+  const isoTs    = now.toISOString().replace(/\.\d+Z$/, 'Z');
+
+  const title   = metaFm.title   ?? 'Recovered DataBook';
+  const version = metaFm.version ?? '1.0.0';
+  const created = metaFm.created ?? isoDate;
+  const dbPath  = metaFm.path    ?? null;
+
+  // Derive default output filename from path terminal segment (v1.5.0).
+  // Falls back to a sanitised IRI slug when no path is recorded.
+  const defaultStem = dbPath
+    ? dbPath.split('/').pop()
+    : databookId.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').slice(-60);
+  const defaultOutPath = `${defaultStem}.databook.md`;
+
+  const frontmatter = [
+    '---',
+    `id: ${databookId}`,
+    `title: "${title.replace(/"/g, '\\"')}"`,
+    'type: databook',
+    `version: ${version}`,
+    `created: ${created}`,
+    '',
+    'process:',
+    '  transformer: "databook pull --databook-id"',
+    '  transformer_type: service',
+    `  transformer_iri: ${sparqlEndpoint}`,
+    `  timestamp: ${isoTs}`,
+    '  inputs:',
+    ...blocks.map(b => `    - iri: ${b.graphIri}`),
+    '---',
+    '',
+  ].join('\n');
+
+  const body = blocks.map(b => [
+    `<!-- databook:id: ${b.blockId} -->`,
+    `\`\`\`${b.label}`,
+    b.content,
+    '```',
+  ].join('\n')).join('\n\n');
+
+  const output = frontmatter + '\n' + body + '\n';
+
+  if (outPath && outPath !== '-') {
+    atomicWriteEncoded(outPath, output, enc);
+    if (!quiet) process.stderr.write(
+      `[pull] Recovered ${blocks.length} block${blocks.length !== 1 ? 's' : ''} → ${outPath}\n`
+    );
+  } else if (!outPath) {
+    // Default: write to terminal-segment filename derived from path (v1.5.0)
+    atomicWriteEncoded(defaultOutPath, output, enc);
+    if (!quiet) process.stderr.write(
+      `[pull] Recovered ${blocks.length} block${blocks.length !== 1 ? 's' : ''} → ${defaultOutPath}\n`
+    );
+  } else {
+    writeOutput(null, output, enc);
+  }
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
