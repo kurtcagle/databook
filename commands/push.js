@@ -2,23 +2,14 @@
  * databook push — transfer RDF blocks from a DataBook to a SPARQL triplestore.
  *
  * Changes in v1.4.2:
+ *   1. Empty-string --graph guard
+ *   2. Meta graph push respects --merge
+ *   3. resolveGraphIri — restored fragment-addressing + processors.toml step
  *
- *   1. Empty-string --graph guard:
- *      `--graph ""` now exits with an error rather than silently falling
- *      through to the fragment-addressing rule.
- *
- *   2. Meta graph push respects --merge:
- *      Previously always used gspPut (HTTP PUT) for the #meta graph.
- *      When --merge is set, gspPost (HTTP POST) is used instead, matching
- *      the behaviour of data block pushes.
- *
- *   3. resolveGraphIri — restored fragment-addressing + processors.toml step:
- *      Priority chain (v1.4.2):
- *        1. --graph <iri>                    explicit CLI override
- *        2. frontmatter graph.named_graph    per-document declaration
- *        3. processors.toml named_graph      per-environment
- *        4. {databookId}#{block.id}          fragment-addressing  ← restored
- *        5. null → GSP ?default              bare fallback
+ * Changes in v1.5.0 (index graph):
+ *   4. --index-graph <IRI> | "none" — write catalog record to index named graph
+ *      after a successful push. Default IRI derived from dataset name.
+ *   5. --path <path> — store db:path in the index record (overrides frontmatter path).
  */
 
 import { loadDataBookFile, PUSHABLE_LABELS, blockPayload } from '../lib/parser.js';
@@ -42,6 +33,8 @@ export async function runPush(filePath, opts) {
     publish: publishUrl,
     dryRun = false,
     verbose = false,
+    indexGraph: indexGraphOpt,  // v1.5.0: --index-graph
+    path: pathOpt,               // v1.5.0: --path (override frontmatter path in index)
   } = opts;
 
   if (dryRun) opts.verbose = true;
@@ -112,7 +105,19 @@ export async function runPush(filePath, opts) {
 
   const fm = db.frontmatter;
 
-  // ── Resolve endpoints ─────────────────────────────────────────────────────────
+  // ── Filename stem validation (v1.5.0) ─────────────────────────────────────
+  // Warn when the source filename stem doesn't match the path terminal segment.
+  if (fm.path && filePath) {
+    const { basename } = await import('path');
+    const terminalSegment = fm.path.split('/').pop();
+    const fileStem = basename(filePath).replace(/\.databook\.md$/i, '').replace(/\.md$/i, '');
+    if (fileStem !== terminalSegment) {
+      process.stderr.write(
+        `warn: filename stem '${fileStem}' does not match path terminal '${terminalSegment}'\n` +
+        `  Consider renaming the file to '${terminalSegment}.databook.md'\n`
+      );
+    }
+  }
   const datasetCfg     = opts.dataset ? datasetToEndpoints(opts.dataset) : null;
   const sparqlEndpoint = endpointOpt ?? serverCfg?.endpoint ?? datasetCfg?.endpoint ?? getDefaultEndpoint() ?? LOCALHOST_FUSEKI.endpoint;
 
@@ -146,7 +151,6 @@ export async function runPush(filePath, opts) {
     selectedBlocks = db.blocks.filter(b => PUSHABLE_LABELS.has(b.label));
   }
 
-  // Validate --graph constraint (only when a real non-empty IRI is given)
   const effectiveGraphOpt = (graphOpt !== undefined && graphOpt !== null && graphOpt.trim() !== '')
     ? graphOpt : undefined;
 
@@ -212,12 +216,10 @@ export async function runPush(filePath, opts) {
     if (metaIri) {
       const metaTurtle = frontmatterToTurtle(fm, db.filePath);
       if (verbose || dryRun) {
-        // v1.4.2: meta graph method follows --merge flag
         logBlockOp(merge ? 'POST' : 'PUT', gspEndpoint, metaIri, 'text/turtle', metaTurtle, dryRun, true);
       }
       if (!dryRun) {
         try {
-          // v1.4.2: meta graph respects --merge flag
           const result = merge
             ? await gspPost(gspEndpoint, metaIri, metaTurtle, 'text/turtle', auth)
             : await gspPut(gspEndpoint, metaIri, metaTurtle, 'text/turtle', auth);
@@ -230,6 +232,21 @@ export async function runPush(filePath, opts) {
     }
   }
 
+  // ── Index graph upsert (v1.5.0) ───────────────────────────────────────────────
+  // Runs after successful push; non-fatal on failure.
+  if (!dryRun && pushed > 0 && failed === 0 && indexGraphOpt !== 'none') {
+    const indexGraphIri = indexGraphOpt ?? deriveIndexGraphIri(sparqlEndpoint);
+    if (indexGraphIri) {
+      const effectivePath = pathOpt ?? fm.path ?? null;
+      await upsertIndexRecord(fm, effectivePath, indexGraphIri, updateEndpoint, auth, verbose);
+    } else if (verbose) {
+      log('[push] index upsert skipped — could not derive index graph IRI');
+    }
+  } else if (dryRun && indexGraphOpt !== 'none') {
+    const indexGraphIri = indexGraphOpt ?? deriveIndexGraphIri(sparqlEndpoint);
+    if (indexGraphIri) log(`[push] dry-run: would upsert index record → ${indexGraphIri}`);
+  }
+
   // ── Summary ───────────────────────────────────────────────────────────────────
   if (verbose || dryRun) {
     const metaNote = meta && databookId ? '  (1 meta graph)' : '';
@@ -240,36 +257,94 @@ export async function runPush(filePath, opts) {
   if (failed > 0 && pushed === 0) process.exit(2);
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Index graph helpers (v1.5.0) ─────────────────────────────────────────────
 
 /**
- * Determine the target named graph IRI for a block.
- *
- * Priority (v1.4.2):
- *   1. Explicit --graph <iri>          per-invocation CLI override
- *   2. frontmatter graph.named_graph   per-document declaration
- *   3. processors.toml named_graph     per-environment (getDefaultNamedGraph())
- *   4. {databookId}#{block.id}         fragment-addressing  ← restored in v1.4.2
- *   5. null → GSP ?default             bare fallback
+ * Derive index graph IRI from the SPARQL endpoint URL.
+ * http://localhost:3030/causalspark/sparql → urn:causalspark:databook:index#graph
  */
+function deriveIndexGraphIri(sparqlEndpoint) {
+  try {
+    const url    = new URL(sparqlEndpoint);
+    const parts  = url.pathname.split('/').filter(Boolean);
+    // parts: ['causalspark', 'sparql'] or ['ds', 'sparql']
+    const dataset = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+    if (dataset) return `urn:${dataset}:databook:index#graph`;
+  } catch {}
+  return null;
+}
+
+/**
+ * Upsert a catalog record for this DataBook into the index named graph.
+ * Uses WITH … DELETE … INSERT … WHERE for idempotent upsert.
+ */
+async function upsertIndexRecord(fm, pathValue, indexGraphIri, updateEndpoint, auth, verbose) {
+  const id = fm.id;
+  if (!id) {
+    if (verbose) log('[push] index upsert skipped — DataBook has no id');
+    return;
+  }
+
+  const now         = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const title       = (fm.title    ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const type        = fm.type      ?? 'databook';
+  const version     = fm.version   ?? '1.0.0';
+  const created     = fm.created   ?? now.slice(0, 10);
+  const description = fm.description
+    ? `        dcterms:description "${fm.description.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    : null;
+  const pathTriple  = pathValue
+    ? `        db:path             "${pathValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    : null;
+  const namedGraph  = fm.graph?.named_graph
+    ? `        db:namedGraph       <${fm.graph.named_graph}>`
+    : null;
+
+  const optionalTriples = [description, pathTriple, namedGraph]
+    .filter(Boolean)
+    .join(' ;\n') + (description || pathTriple || namedGraph ? ' ;' : '');
+
+  const update = `\
+PREFIX db:      <https://w3id.org/databook/ns#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+WITH <${indexGraphIri}>
+DELETE { <${id}> ?p ?o }
+INSERT {
+    <${id}>
+        a db:DataBook ;
+        dcterms:title       "${title}" ;
+        dcterms:type        "${type}" ;
+        dcterms:created     "${created}"^^xsd:date ;
+${optionalTriples ? optionalTriples + '\n' : ''}\
+        db:version          "${version}" ;
+        db:indexedAt        "${now}"^^xsd:dateTime .
+}
+WHERE { OPTIONAL { <${id}> ?p ?o } }`;
+
+  if (verbose) log(`[push] index upsert → ${indexGraphIri}`);
+
+  try {
+    const result = await sparqlUpdate(updateEndpoint, update, auth);
+    if (!result.ok) {
+      process.stderr.write(`warn: index upsert failed (HTTP ${result.status}) — push succeeded\n`);
+    } else if (verbose) {
+      log(`[push] index upsert OK (${result.status})`);
+    }
+  } catch (e) {
+    process.stderr.write(`warn: index upsert error: ${e.message} — push succeeded\n`);
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function resolveGraphIri(block, graphOpt, fm, databookId, filePath, totalBlocks = 1) {
-  // 1. Explicit --graph
   if (graphOpt) return graphOpt;
-
-  // 2. Frontmatter graph.named_graph (single-block convenience)
   if (fm.graph?.named_graph && totalBlocks === 1) return fm.graph.named_graph;
-
-  // 3. processors.toml default_endpoint.named_graph (per-environment)
-  //    Set named_graph = "urn:x-arq:DefaultGraph" to route all pushes to
-  //    Jena's default graph without per-document frontmatter.
   const configGraph = getDefaultNamedGraph();
   if (configGraph) return configGraph;
-
-  // 4. Fragment-addressing: {databookId}#{block.id}
-  //    Mirrors pull's resolveGraphIris() — push/pull symmetric by default.
   if (databookId && block.id) return `${databookId}#${block.id}`;
-
-  // 5. Null → GSP ?default
   return null;
 }
 
