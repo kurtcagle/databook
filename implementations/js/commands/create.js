@@ -282,7 +282,14 @@ export async function runCreate(inputArgs, opts) {
   // Validate protected fields not overwritten
   if (!frontmatter.id) {
     const uniqueSuffix = randomUUID().replace(/-/g, '').slice(0, 8);
-    const generatedId = `https://w3id.org/databook/${slugify(frontmatter.title ?? 'untitled')}-${uniqueSuffix}-v${frontmatter.version}`;
+    const titleSlug = frontmatter.title && frontmatter.title.trim()
+      ? slugify(frontmatter.title)
+      : frontmatter.path
+        ? slugify(frontmatter.path.split('/').pop())
+        : outputArg && outputArg !== '-'
+          ? slugify(basename(outputArg).replace(/\.databook\.md$/i, '').replace(/\.md$/i, ''))
+          : 'untitled';
+    const generatedId = `https://w3id.org/databook/${titleSlug}-${uniqueSuffix}-v${frontmatter.version}`;
     frontmatter.id = generatedId;
     if (!quiet) warn(`W_ID_GENERATED: no id provided; using generated IRI: ${generatedId}`);
   }
