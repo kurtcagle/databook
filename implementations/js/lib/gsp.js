@@ -1,6 +1,20 @@
 /**
- * GSP (Graph Store Protocol) and SPARQL HTTP client.
- * Uses native Node.js fetch (Node >= 18).
+ * PATCH: lib/gsp.js
+ *
+ * Changes from previous version:
+ *   - gspPut / gspPost / gspGet: graphIri === null now emits ?default
+ *     (SPARQL 1.1 Graph Store HTTP Protocol §4 — default graph access)
+ *     instead of ?graph=<iri>.  This allows push with no --graph to target
+ *     the triplestore's default graph rather than a fragment-addressed IRI.
+ *
+ *   - gspPut / gspPost now return { status, ok, url } so that callers
+ *     can include the actual request URL in error messages. This makes 404
+ *     and other endpoint failures immediately diagnosable without --verbose.
+ *
+ * SPARQL GSP graph parameter semantics:
+ *   ?graph=<iri>   → named graph
+ *   ?default       → default graph
+ *   (no param)     → the entire dataset (only valid for GET in some servers)
  */
 
 import { buildHeaders } from './auth.js';
@@ -18,70 +32,78 @@ export function contentTypeForLabel(label) {
   return CONTENT_TYPES[label] ?? 'text/turtle';
 }
 
+/** Sentinel value meaning "use the GSP default graph (?default)". */
+export const DEFAULT_GRAPH = null;
+
+/** Build the ?graph=... or ?default query parameter string for GSP URLs. */
+function graphParam(graphIri) {
+  return graphIri === null ? '?default' : `?graph=${encodeURIComponent(graphIri)}`;
+}
+
 /**
- * GSP PUT — replace a named graph.
- * @param {string} gspEndpoint
- * @param {string} graphIri
- * @param {string} body        - Turtle / TriG / JSON-LD content
- * @param {string} contentType
- * @param {string|null} auth
- * @returns {{ status: number, ok: boolean }}
+ * GSP PUT — replace a graph.
+ * Pass graphIri=null to target the default graph.
+ * Returns { status, ok, url, errorBody } — url is the full GSP URL called.
+ * errorBody is populated on non-2xx responses; consuming it prevents
+ * UV_HANDLE_CLOSING crashes in Node 18+ (undici).
  */
 export async function gspPut(gspEndpoint, graphIri, body, contentType, auth = null) {
-  const url = `${gspEndpoint}?graph=${encodeURIComponent(graphIri)}`;
-  const headers = buildHeaders(gspEndpoint, auth, {
-    'Content-Type': contentType,
-  });
+  const url = `${gspEndpoint}${graphParam(graphIri)}`;
+  const headers = buildHeaders(gspEndpoint, auth, { 'Content-Type': contentType });
   const resp = await fetchWithErrors(url, { method: 'PUT', headers, body });
-  return { status: resp.status, ok: resp.ok };
+  // Always consume the response body to release the underlying socket.
+  // For error responses, capture the body for inclusion in error messages.
+  const errorBody = resp.ok ? (void await resp.body?.cancel?.(), '') : await resp.text().catch(() => '');
+  return { status: resp.status, ok: resp.ok, url, errorBody };
 }
 
 /**
- * GSP POST — merge triples into a named graph.
+ * GSP POST — merge triples into a graph.
+ * Pass graphIri=null to target the default graph.
+ * Returns { status, ok, url, errorBody } — url is the full GSP URL called.
  */
 export async function gspPost(gspEndpoint, graphIri, body, contentType, auth = null) {
-  const url = `${gspEndpoint}?graph=${encodeURIComponent(graphIri)}`;
-  const headers = buildHeaders(gspEndpoint, auth, {
-    'Content-Type': contentType,
-  });
+  const url = `${gspEndpoint}${graphParam(graphIri)}`;
+  const headers = buildHeaders(gspEndpoint, auth, { 'Content-Type': contentType });
   const resp = await fetchWithErrors(url, { method: 'POST', headers, body });
-  return { status: resp.status, ok: resp.ok };
+  const errorBody = resp.ok ? (void await resp.body?.cancel?.(), '') : await resp.text().catch(() => '');
+  return { status: resp.status, ok: resp.ok, url, errorBody };
 }
 
 /**
- * GSP GET — fetch a named graph.
- * @param {string} gspEndpoint
- * @param {string} graphIri
- * @param {string} accept      - 'text/turtle' | 'application/trig'
- * @param {string|null} auth
- * @returns {{ status: number, ok: boolean, body: string }}
+ * GSP DELETE — remove a named graph.
+ * Pass graphIri=null to clear the default graph.
+ * Returns { status, ok, url }.
+ */
+export async function gspDelete(gspEndpoint, graphIri, auth = null) {
+  const url = `${gspEndpoint}${graphParam(graphIri)}`;
+  const headers = buildHeaders(gspEndpoint, auth, {});
+  const resp = await fetchWithErrors(url, { method: 'DELETE', headers });
+  const errorBody = resp.ok ? (void await resp.body?.cancel?.(), '') : await resp.text().catch(() => '');
+  return { status: resp.status, ok: resp.ok, url, errorBody };
+}
+
+/**
+ * GSP GET — fetch a graph.
+ * Pass graphIri=null to fetch the default graph.
  */
 export async function gspGet(gspEndpoint, graphIri, accept = 'text/turtle', auth = null) {
-  const url = `${gspEndpoint}?graph=${encodeURIComponent(graphIri)}`;
+  const url = `${gspEndpoint}${graphParam(graphIri)}`;
   const headers = buildHeaders(gspEndpoint, auth, { Accept: accept });
   const resp = await fetchWithErrors(url, { method: 'GET', headers });
   const body = await resp.text();
-  return { status: resp.status, ok: resp.ok, body };
+  return { status: resp.status, ok: resp.ok, body, url };
 }
 
 /**
  * Execute a SPARQL query (SELECT / CONSTRUCT / ASK / DESCRIBE).
- * @param {string} endpoint    - SPARQL query endpoint
- * @param {string} query
- * @param {string} accept      - expected media type for results
- * @param {string|null} auth
- * @returns {{ status: number, ok: boolean, body: string }}
  */
 export async function sparqlQuery(endpoint, query, accept, auth = null) {
   const headers = buildHeaders(endpoint, auth, {
     'Content-Type': 'application/sparql-query',
     'Accept': accept,
   });
-  const resp = await fetchWithErrors(endpoint, {
-    method: 'POST',
-    headers,
-    body: query,
-  });
+  const resp = await fetchWithErrors(endpoint, { method: 'POST', headers, body: query });
   const body = await resp.text();
   return { status: resp.status, ok: resp.ok, body };
 }
@@ -93,11 +115,7 @@ export async function sparqlUpdate(updateEndpoint, update, auth = null) {
   const headers = buildHeaders(updateEndpoint, auth, {
     'Content-Type': 'application/sparql-update',
   });
-  const resp = await fetchWithErrors(updateEndpoint, {
-    method: 'POST',
-    headers,
-    body: update,
-  });
+  const resp = await fetchWithErrors(updateEndpoint, { method: 'POST', headers, body: update });
   return { status: resp.status, ok: resp.ok };
 }
 
@@ -108,12 +126,9 @@ export async function sparqlUpdate(updateEndpoint, update, auth = null) {
  * @returns {'SELECT'|'CONSTRUCT'|'ASK'|'DESCRIBE'|'UPDATE'|'UNKNOWN'}
  */
 export function detectQueryType(sparql) {
-  // Mask IRIs so their # fragments aren't stripped as SPARQL comments
-  const masked = sparql.replace(/<[^>]+>/g, '<IRI>');
-  // Strip SPARQL line comments (# not inside a string or IRI)
-  const noComments = masked.replace(/#[^\n]*/g, '');
-  // Case-insensitive keyword search — first query verb wins
-  const upper = noComments.toUpperCase();
+  const masked    = sparql.replace(/<[^>]+>/g, '<IRI>');
+  const noComments= masked.replace(/#[^\n]*/g, '');
+  const upper     = noComments.toUpperCase();
   if (/\bCONSTRUCT\b/.test(upper)) return 'CONSTRUCT';
   if (/\bSELECT\b/.test(upper))    return 'SELECT';
   if (/\bASK\b/.test(upper))       return 'ASK';
@@ -122,9 +137,7 @@ export function detectQueryType(sparql) {
   return 'UNKNOWN';
 }
 
-/**
- * Accept header for a given query type.
- */
+/** Accept header for a given query type. */
 export function acceptForQueryType(queryType) {
   switch (queryType) {
     case 'CONSTRUCT':
@@ -146,34 +159,37 @@ async function fetchWithErrors(url, options) {
   }
 }
 
-/**
- * Handle HTTP status codes and throw typed errors.
- * @param {Response} resp
- * @param {string} context   - e.g. "block 'primary'"
- */
 export function checkResponse(resp, context = '') {
   if (resp.ok) return;
+  // Always include the URL when available — makes 404 and other failures self-diagnosable.
+  const urlNote   = resp.url       ? ` [${resp.url}]` : '';
+  const bodyNote  = resp.errorBody ? `\n  ${resp.errorBody.slice(0, 300)}` : '';
+  const ctx = context ? ` — ${context}${urlNote}` : urlNote;
   if (resp.status === 401 || resp.status === 403) {
-    const err = new Error(
-      `auth rejected by endpoint (HTTP ${resp.status})${context ? ` — ${context}` : ''}`
-    );
+    const err = new Error(`auth rejected by endpoint (HTTP ${resp.status})${ctx}${bodyNote}`);
     err.code = 'E_AUTH';
     err.exitCode = 3;
     throw err;
   }
   if (resp.status === 404) {
-    const err = new Error(`not found (HTTP 404)${context ? ` — ${context}` : ''}`);
+    const err = new Error(`not found (HTTP 404)${ctx}${bodyNote}`);
     err.code = 'E_NOT_FOUND';
     err.exitCode = 5;
     throw err;
   }
+  if (resp.status >= 400 && resp.status < 500) {
+    const err = new Error(`client error (HTTP ${resp.status})${ctx}${bodyNote}`);
+    err.code = 'E_CLIENT';
+    err.exitCode = 1;
+    throw err;
+  }
   if (resp.status >= 500) {
-    const err = new Error(`server error (HTTP ${resp.status})${context ? ` — ${context}` : ''}`);
+    const err = new Error(`server error (HTTP ${resp.status})${ctx}${bodyNote}`);
     err.code = 'E_SERVER';
     err.exitCode = 1;
     throw err;
   }
-  const err = new Error(`HTTP ${resp.status}${context ? ` — ${context}` : ''}`);
+  const err = new Error(`HTTP ${resp.status}${ctx}${bodyNote}`);
   err.code = 'E_HTTP';
   err.exitCode = 1;
   throw err;
