@@ -98,7 +98,11 @@ export async function runCreate(inputArgs, opts) {
     verbose     = false,
     quiet       = false,
     force       = false,
+    encoding:   encOpt,
   } = opts;
+
+  let enc;
+  try { enc = resolveEncoding(encOpt); } catch (e) { die(e.message); }
 
   // ── Resolve body content (--body / --body-file) ───────────────────────────
   let bodyContent = null;
