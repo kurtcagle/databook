@@ -260,22 +260,29 @@ export async function runCreate(inputArgs, opts) {
   const frontmatter = deepMerge(defaults, configFieldsOnly(config));
   applySetOverrides(frontmatter, setOverrides);
 
-  // ── Apply --filepath ───────────────────────────────────────────────────────
+  // ── Apply --filepath (or derive from -o) ──────────────────────────────────
   if (filepathOpt) {
     frontmatter.path = filepathOpt;
     const terminal = filepathOpt.split('/').pop();
-    // Warn if explicit -o stem doesn't match terminal segment
     if (outputArg && outputArg !== '-') {
       const outStem = basename(outputArg).replace(/\.databook\.md$/i, '').replace(/\.md$/i, '');
       if (outStem !== terminal) {
         warn(`W_PATH_FILENAME_MISMATCH: output filename stem '${outStem}' does not match path terminal '${terminal}'`);
       }
     }
+  } else if (outputArg && outputArg !== '-') {
+    // Derive path from -o: strip .databook.md/.md, normalise separators
+    const derivedPath = outputArg
+      .replace(/\.databook\.md$/i, '')
+      .replace(/\.md$/i, '')
+      .replace(/\\/g, '/');
+    frontmatter.path = derivedPath;
   }
 
   // Validate protected fields not overwritten
   if (!frontmatter.id) {
-    const generatedId = `https://w3id.org/databook/${slugify(frontmatter.title ?? 'untitled')}-v${frontmatter.version}`;
+    const uniqueSuffix = randomUUID().replace(/-/g, '').slice(0, 8);
+    const generatedId = `https://w3id.org/databook/${slugify(frontmatter.title ?? 'untitled')}-${uniqueSuffix}-v${frontmatter.version}`;
     frontmatter.id = generatedId;
     if (!quiet) warn(`W_ID_GENERATED: no id provided; using generated IRI: ${generatedId}`);
   }
@@ -416,13 +423,9 @@ function assembleDataBook(frontmatter, blocks, templateBody, quiet, bodyContent)
   const fmYaml  = yaml.dump(cleanFm, { lineWidth: 100, quotingType: '"' }).trimEnd();
 
   const fmBlock = [
-    '<script language="application/yaml">',
-    '',
     '---',
     fmYaml,
     '---',
-    '',
-    '</script>',
     '',
   ].join('\n');
 
