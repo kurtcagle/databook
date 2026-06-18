@@ -417,9 +417,28 @@ function generateBlockId(absPath, seen) {
 
 // ─── Output DataBook assembly ─────────────────────────────────────────────────
 
+// Canonical frontmatter key order — controls YAML serialisation order
+const FM_KEY_ORDER = [
+  'id', 'title', 'type', 'version', 'created', 'path', 'status',
+  'author', 'license', 'domain', 'subject', 'description',
+  'graph', 'shapes', 'encryption', 'process',
+];
+
+function orderFrontmatter(fm) {
+  const ordered = {};
+  for (const key of FM_KEY_ORDER) {
+    if (key in fm) ordered[key] = fm[key];
+  }
+  // Any keys not in the canonical list follow at the end
+  for (const key of Object.keys(fm)) {
+    if (!(key in ordered)) ordered[key] = fm[key];
+  }
+  return ordered;
+}
+
 function assembleDataBook(frontmatter, blocks, templateBody, quiet, bodyContent) {
-  // Serialise frontmatter (strip null values)
-  const cleanFm = removeNulls(frontmatter);
+  // Serialise frontmatter (strip null values, enforce key order)
+  const cleanFm = orderFrontmatter(removeNulls(frontmatter));
   const fmYaml  = yaml.dump(cleanFm, { lineWidth: 100, quotingType: '"' }).trimEnd();
 
   const fmBlock = [
