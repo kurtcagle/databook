@@ -187,6 +187,9 @@ program
   .option('--template <file>',      'Markdown prose template (overrides config template:)')
   .option('--format <blocktype>',   'Global format fallback for unresolved inputs')
   .option('-o, --output <file>',    'Output path (default: {stem}.databook.md, "-" for stdout)')
+  .option('--filepath <path>',      'Logical path for the DataBook (e.g. ggsc/country-risk/kenya). Sets frontmatter path field; terminal segment used as default output filename stem.')
+  .option('--body <text>',          'Prose body text to inject into the DataBook overview section. Enables no-input scaffold mode when no data files are given.')
+  .option('--body-file <path>',     'Read body prose from a file (alternative to --body)')
   .option('--encoding <enc>',       'Output encoding: utf8 (default), utf8bom, utf16')
   .option('--force',                'Overwrite output if it exists')
   .option('--dry-run',              'Print resolved input plan without producing output')
@@ -194,7 +197,22 @@ program
   .option('--registry <file>',      'Additional plugin registry DataBook (repeatable)', collect, [])
   .option('-v, --verbose',          'Emit per-input handler resolution details')
   .option('-q, --quiet',            'Suppress warnings')
-  .addHelpText('after', `\nTemplate resolution order: (1) --template flag, (2) config template: field, (3) built-in minimal.\n\nExamples:\n  databook create ontology.ttl\n  databook create ontology.ttl shapes.shacl.ttl -C project.yaml -o output.databook.md\n  databook create -C pipeline/stage1.yaml -o output/stage1.databook.md\n  `)
+  .addHelpText('after', `
+Template resolution order: (1) --template flag, (2) config template: field, (3) built-in minimal.
+
+--filepath sets frontmatter.path and uses the terminal segment as the default output filename
+when -o is not given (e.g. --filepath ggsc/country-risk/kenya → kenya.databook.md).
+
+--body / --body-file inject prose into the overview section. When provided without any input
+files, creates a scaffold DataBook with no data blocks.
+
+Examples:
+  databook create ontology.ttl
+  databook create ontology.ttl shapes.shacl.ttl -C project.yaml -o output.databook.md
+  databook create -C pipeline/stage1.yaml -o output/stage1.databook.md
+  databook create --filepath ggsc/country-risk/kenya --body "Kenya 2026 Q2 risk projection."
+  databook create my-data.ttl --filepath ggsc/country-risk/kenya -o kenya.databook.md
+  `)
   .action(async (inputs, opts) => { await runCreate(inputs ?? [], opts); });
 
 // ─── databook push ────────────────────────────────────────────────────────────────
