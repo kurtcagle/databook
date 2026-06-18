@@ -188,6 +188,7 @@ program
   .option('--format <blocktype>',   'Global format fallback for unresolved inputs')
   .option('-o, --output <file>',    'Output path (default: {stem}.databook.md, "-" for stdout)')
   .option('--filepath <path>',      'Logical path for the DataBook (e.g. ggsc/country-risk/kenya). Sets frontmatter path field; terminal segment used as default output filename stem.')
+  .option('--title <text>',         'DataBook title. Sets frontmatter title and the # heading in the output. Defaults to humanized filepath/output stem when not given.')
   .option('--body <text>',          'Prose body text to inject into the DataBook overview section. Enables no-input scaffold mode when no data files are given.')
   .option('--body-file <path>',     'Read body prose from a file (alternative to --body)')
   .option('--encoding <enc>',       'Output encoding: utf8 (default), utf8bom, utf16')
