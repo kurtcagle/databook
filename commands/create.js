@@ -417,3 +417,7 @@ function generateBlockId(absPath, seen) {
   const shortUuid = randomUUID().replace(/-/g, '').slice(0, 8);
   return `${stem}-${shortUuid}`;
 }
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function log(msg)         { process.stderr.write(msg + '\n'); }
+function die(msg, code=1) { process.stderr.write(`error: ${msg}\n`); process.exit(code); }
