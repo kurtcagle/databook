@@ -99,6 +99,7 @@ export async function runCreate(inputArgs, opts) {
     quiet       = false,
     force       = false,
     encoding:   encOpt,
+    title:      titleOpt,     // --title: explicit title
   } = opts;
 
   let enc;
@@ -294,8 +295,19 @@ export async function runCreate(inputArgs, opts) {
     if (!quiet) warn(`W_ID_GENERATED: no id provided; using generated IRI: ${generatedId}`);
   }
   if (!frontmatter.title) {
-    const stems = resolvedInputs.map(i => basename(i.path, extname(i.path)));
-    frontmatter.title = stems.length === 1 ? capitalize(stems[0]) : `DataBook: ${stems.join(', ')}`;
+    if (titleOpt) {
+      frontmatter.title = titleOpt;
+    } else if (resolvedInputs.length > 0) {
+      const stems = resolvedInputs.map(i => basename(i.path, extname(i.path)));
+      frontmatter.title = stems.length === 1 ? capitalize(stems[0]) : `DataBook: ${stems.join(', ')}`;
+    } else if (filepathOpt) {
+      frontmatter.title = humanizeSlug(filepathOpt.split('/').pop());
+    } else if (outputArg && outputArg !== '-') {
+      frontmatter.title = humanizeSlug(basename(outputArg).replace(/\.databook\.md$/i, '').replace(/\.md$/i, ''));
+    }
+  } else if (titleOpt) {
+    // --title overrides anything already in frontmatter (e.g. from --set or config)
+    frontmatter.title = titleOpt;
   }
   if (frontmatter.process?.transformer_type == null && !quiet) {
     warn('W_TRANSFORMER_TYPE_DEFAULT: process.transformer_type defaulted to "script"');
@@ -617,6 +629,10 @@ function stripDatabookComments(content) {
 
 function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function humanizeSlug(s) {
+  return s.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function capitalize(s) {
