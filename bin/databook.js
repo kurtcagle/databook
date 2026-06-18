@@ -24,6 +24,8 @@ import { runDescribe }      from '../commands/describe.js';
 import { runIngest }        from '../commands/ingest.js';
 import { runShacl2Sparql }        from '../commands/shacl2sparql.js';
 import { runList }          from '../commands/list.js';
+import { runDelete }        from '../commands/delete.js';
+import { runIndex }         from '../commands/index-graph.js';
 
 program
   .name('databook')
@@ -495,11 +497,14 @@ Examples:
 
 program
   .command('list')
-  .description('List DataBooks pushed to the triplestore (queries #meta graphs)')
+  .description('List DataBooks in the triplestore (index graph or #meta fallback)')
   .option('-s, --server <n>',        'Named server from processors.toml (use "list" to show all)')
   .option('-d, --dataset <n>',       'Fuseki dataset name on localhost')
   .option('-e, --endpoint <url>',    'SPARQL query endpoint URL')
-  .option('-f, --format <fmt>',      'Output format: table (default), json, sparql', 'table')
+  .option('--index-graph <iri>',        'Index graph IRI (default: derived from dataset; "none" uses legacy #meta scan)')
+  .option('--path <prefix>',            'Filter to DataBooks under this folder path prefix')
+  .option('--tree',                     'Display results as a path tree')
+  .option('-f, --format <fmt>',         'Output format: table (default), json, turtle, sparql', 'table')
   .option('-a, --auth <credential>', 'Auth credential (Basic/Bearer or bare base64)')
   .option('-v, --verbose',           'Show full IRI when truncated in table')
   .option('-q, --quiet',             'Suppress count summary line')
@@ -525,6 +530,39 @@ Examples:
   databook list --format sparql
   `)
   .action(async (opts) => { await runList(opts); });
+
+// ─── databook delete ───────────────────────────────────────────────────────────
+program
+  .command('delete [file]')
+  .description("Delete a DataBook's named graphs and index record from the triplestore")
+  .option('-s, --server <n>',           'Named server from processors.toml')
+  .option('-d, --dataset <n>',          'Fuseki dataset name on localhost')
+  .option('-e, --endpoint <url>',       'SPARQL query endpoint URL')
+  .option('--databook-id <iri>',        'DataBook IRI (no source file needed)')
+  .option('--index-graph <iri>',        'Index graph IRI ("none" to skip index removal)')
+  .option('--no-meta',                  'Skip deleting the #meta graph')
+  .option('-a, --auth <credential>',    'Auth credential (Basic/Bearer or bare base64)')
+  .option('--dry-run',                  'Print operations without executing')
+  .option('-v, --verbose',              'Verbose output')
+  .option('-q, --quiet',                'Suppress summary')
+  .action(async (file, opts) => { await runDelete(file ?? null, opts); });
+
+// ─── databook index ────────────────────────────────────────────────────────────
+program
+  .command('index')
+  .description('Manage the dataset index named graph (repair, rebuild, show)')
+  .option('-s, --server <n>',           'Named server from processors.toml')
+  .option('-d, --dataset <n>',          'Fuseki dataset name on localhost')
+  .option('-e, --endpoint <url>',       'SPARQL query endpoint URL')
+  .option('--index-graph <iri>',        'Index graph IRI (default: derived from dataset)')
+  .option('--repair',                   'Remove stale index records whose named graphs no longer exist')
+  .option('--rebuild',                  'Rebuild index from existing #meta graphs (migration)')
+  .option('--show',                     'Print the index graph (alias for list --index-graph)')
+  .option('-a, --auth <credential>',    'Auth credential (Basic/Bearer or bare base64)')
+  .option('--dry-run',                  'Print operations without executing')
+  .option('-v, --verbose',              'Verbose output')
+  .option('-q, --quiet',                'Suppress summary')
+  .action(async (opts) => { await runIndex(opts); });
 
 process.on('uncaughtException', (err) => {
   if (err.code === 'E_UNREACHABLE') { process.stderr.write(`error: ${err.message}\n`); process.exit(4); }
