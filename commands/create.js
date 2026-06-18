@@ -89,6 +89,9 @@ export async function runCreate(inputArgs, opts) {
     template:   templateFile,
     format:     globalFormat,
     output:     outputArg,
+    filepath:   filepathOpt,   // --filepath: logical path, sets frontmatter.path
+    body:       bodyText,      // --body: inline prose text
+    bodyFile:   bodyFilePath,  // --body-file: prose from file
     dryRun      = false,
     noInfer     = false,
     registry:   registryFiles = [],
@@ -96,6 +99,15 @@ export async function runCreate(inputArgs, opts) {
     quiet       = false,
     force       = false,
   } = opts;
+
+  // ── Resolve body content (--body / --body-file) ───────────────────────────
+  let bodyContent = null;
+  if (bodyFilePath) {
+    try { bodyContent = readFileSync(bodyFilePath, 'utf8'); }
+    catch (e) { die(`cannot read body file: ${bodyFilePath}: ${e.message}`); }
+  } else if (bodyText) {
+    bodyContent = bodyText;
+  }
 
   // ── Load config ───────────────────────────────────────────────────────────
   let config = {};
@@ -113,8 +125,8 @@ export async function runCreate(inputArgs, opts) {
   const resolvedInputs = resolveInputList(inputArgs, configInputs,
                                           configFile, globalFormat, noInfer, verbose);
 
-  if (resolvedInputs.length === 0) {
-    die('E_NO_INPUT: no inputs resolved from CLI args or config inputs:');
+  if (resolvedInputs.length === 0 && !bodyContent) {
+    die('E_NO_INPUT: no inputs resolved from CLI args or config inputs. Provide at least one data file, or use --body / --body-file to create a scaffold DataBook.');
   }
 
   // ── Dry-run: print resolution plan ───────────────────────────────────────
@@ -244,6 +256,19 @@ export async function runCreate(inputArgs, opts) {
   const frontmatter = deepMerge(defaults, configFieldsOnly(config));
   applySetOverrides(frontmatter, setOverrides);
 
+  // ── Apply --filepath ───────────────────────────────────────────────────────
+  if (filepathOpt) {
+    frontmatter.path = filepathOpt;
+    const terminal = filepathOpt.split('/').pop();
+    // Warn if explicit -o stem doesn't match terminal segment
+    if (outputArg && outputArg !== '-') {
+      const outStem = basename(outputArg).replace(/\.databook\.md$/i, '').replace(/\.md$/i, '');
+      if (outStem !== terminal) {
+        warn(`W_PATH_FILENAME_MISMATCH: output filename stem '${outStem}' does not match path terminal '${terminal}'`);
+      }
+    }
+  }
+
   // Validate protected fields not overwritten
   if (!frontmatter.id) {
     const generatedId = `https://w3id.org/databook/${slugify(frontmatter.title ?? 'untitled')}-v${frontmatter.version}`;
@@ -262,13 +287,17 @@ export async function runCreate(inputArgs, opts) {
   const templatePath = templateFile ?? config.template ?? null;
   let templateBody = templatePath
     ? readFileSync(resolve(templatePath), 'utf8')
-    : buildDefaultTemplate(processedBlocks, frontmatter);
+    : buildDefaultTemplate(processedBlocks, frontmatter, bodyContent);
 
   // ── Assemble output ───────────────────────────────────────────────────────
-  const output = assembleDataBook(frontmatter, processedBlocks, templateBody, quiet);
+  const output = assembleDataBook(frontmatter, processedBlocks, templateBody, quiet, bodyContent);
 
   // ── Write output ──────────────────────────────────────────────────────────
-  const outPath = resolveOutputPath(outputArg, resolvedInputs[0]?.path, force);
+  // Default filename: --filepath terminal segment > first input stem > null (stdout)
+  const defaultFilename = filepathOpt
+    ? `${filepathOpt.split('/').pop()}.databook.md`
+    : null;
+  const outPath = resolveOutputPath(outputArg, resolvedInputs[0]?.path, force, defaultFilename);
 
   if (!outPath || outPath === '-') {
     writeOutput(null, output, enc);
@@ -377,7 +406,7 @@ function generateBlockId(absPath, seen) {
 
 // ─── Output DataBook assembly ─────────────────────────────────────────────────
 
-function assembleDataBook(frontmatter, blocks, templateBody, quiet) {
+function assembleDataBook(frontmatter, blocks, templateBody, quiet, bodyContent) {
   // Serialise frontmatter (strip null values)
   const cleanFm = removeNulls(frontmatter);
   const fmYaml  = yaml.dump(cleanFm, { lineWidth: 100, quotingType: '"' }).trimEnd();
@@ -394,9 +423,11 @@ function assembleDataBook(frontmatter, blocks, templateBody, quiet) {
   ].join('\n');
 
   // Render template — substitute {{variable}} from frontmatter and
-  // {{blocks}} / {{block:id}} markers
+  // {{blocks}} / {{block:id}} / {{body}} markers
   let body = templateBody;
   body = body.replace(/\{\{(\w[\w.]*)\}\}/g, (_, key) => {
+    if (key === 'body') return bodyContent ?? '';
+    if (key === 'blocks') return null;  // handled below
     const val = getNestedValue(cleanFm, key);
     return val != null ? String(val) : `{{${key}}}`;
   });
@@ -412,7 +443,8 @@ function assembleDataBook(frontmatter, blocks, templateBody, quiet) {
   });
 
   // If template has no {{blocks}} marker, append blocks after template body
-  if (!templateBody.includes('{{blocks}}') &&
+  if (blocks.length > 0 &&
+      !templateBody.includes('{{blocks}}') &&
       !blocks.some(b => templateBody.includes(`{{block:${b.blockId}}}`))) {
     body = body.trimEnd() + '\n\n' + allBlocksText;
   }
@@ -435,13 +467,13 @@ function renderBlock(block) {
   return lines.join('\n');
 }
 
-function buildDefaultTemplate(blocks, frontmatter) {
+function buildDefaultTemplate(blocks, frontmatter, bodyContent) {
   const lines = [
     `# ${frontmatter.title ?? 'DataBook'}`,
     '',
-    frontmatter.description
-      ? frontmatter.description.trim() + '\n'
-      : '',
+    bodyContent
+      ? bodyContent.trim() + '\n'
+      : (frontmatter.description ? frontmatter.description.trim() + '\n' : ''),
   ];
 
   for (const block of blocks) {
@@ -459,10 +491,10 @@ function buildDefaultTemplate(blocks, frontmatter) {
 
 // ─── Output path resolution ───────────────────────────────────────────────────
 
-function resolveOutputPath(outputArg, firstInputPath, force) {
+function resolveOutputPath(outputArg, firstInputPath, force, defaultFilename) {
   if (!outputArg) {
+    if (defaultFilename) return defaultFilename;
     if (!firstInputPath) return null;
-    // Infer from first input: ontology.ttl → ontology.databook.md
     const stem = basename(firstInputPath, extname(firstInputPath));
     return `${stem}.databook.md`;
   }
