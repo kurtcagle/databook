@@ -12,15 +12,16 @@
  *   3. pyshacl subprocess → Python fallback
  */
 
-import { readFileSync }                                        from 'fs';
-import { resolve, basename }                                   from 'path';
-import { execFileSync }                                        from 'child_process';
-import crypto                                                  from 'crypto';
-import { writeOutput, atomicWriteEncoded, resolveEncoding }    from '../lib/encoding.js';
-import { loadDataBookFile, blockPayload, PUSHABLE_LABELS }     from '../lib/parser.js';
-import { resolveAuth }                                         from '../lib/auth.js';
-import { resolveServer, LOCALHOST_FUSEKI, datasetToEndpoints } from '../lib/serverConfig.js';
-import { sparqlQuery, checkResponse }                          from '../lib/gsp.js';
+import { readFileSync, writeFileSync, unlinkSync }              from 'fs';
+import { resolve, basename, join }                              from 'path';
+import { tmpdir }                                                from 'os';
+import { execFileSync }                                          from 'child_process';
+import crypto                                                    from 'crypto';
+import { writeOutput, atomicWriteEncoded, resolveEncoding }      from '../lib/encoding.js';
+import { loadDataBookFile, blockPayload, PUSHABLE_LABELS }       from '../lib/parser.js';
+import { resolveAuth }                                           from '../lib/auth.js';
+import { resolveServer, LOCALHOST_FUSEKI, datasetToEndpoints }   from '../lib/serverConfig.js';
+import { sparqlQuery, checkResponse }                             from '../lib/gsp.js';
 
 export async function runValidate(source, opts) {
   const {
@@ -133,14 +134,24 @@ export async function runValidate(source, opts) {
 // ─── Validation engine ────────────────────────────────────────────────────────
 
 async function executeValidation(dataText, shapesText, endpointOpt, formatOpt, authOpt, verbose) {
-  // Try local Jena shacl CLI first
+  // Try local Jena shacl CLI (or pyshacl) first
   const jenaShacl = resolveJenaShaclCli();
-  if (jenaShacl || !endpointOpt) {
+
+  if (jenaShacl) {
     return executeLocalValidation(dataText, shapesText, jenaShacl, verbose);
   }
 
-  // Remote endpoint fallback
-  return executeRemoteValidation(dataText, shapesText, endpointOpt, formatOpt, authOpt, verbose);
+  if (endpointOpt) {
+    return executeRemoteValidation(dataText, shapesText, endpointOpt, formatOpt, authOpt, verbose);
+  }
+
+  // No local engine and no remote endpoint: fail clearly instead of silently
+  // calling executeLocalValidation with a null engine.
+  die(
+    'no SHACL engine available: install Jena (set JENA_HOME or put `shacl` on PATH) ' +
+    'or pyshacl, or pass --endpoint <url> for remote validation.',
+    3,
+  );
 }
 
 function resolveJenaShaclCli() {
@@ -165,10 +176,6 @@ function resolveJenaShaclCli() {
 }
 
 function executeLocalValidation(dataText, shapesText, engine, verbose) {
-  const { writeFileSync, unlinkSync } = require('fs');
-  const { tmpdir } = require('os');
-  const { join } = require('path');
-
   const tmpData   = join(tmpdir(), `db-data-${process.pid}.ttl`);
   const tmpShapes = join(tmpdir(), `db-shapes-${process.pid}.ttl`);
 
@@ -184,8 +191,13 @@ function executeLocalValidation(dataText, shapesText, engine, verbose) {
     }
     return result;
   } catch (e) {
-    // execFileSync throws on non-zero exit; SHACL violations exit non-zero in some engines
-    return e.stdout ?? e.message ?? '';
+    // execFileSync throws on non-zero exit; SHACL violations exit non-zero in
+    // some engines, so a captured stdout is treated as the report. If there's
+    // no stdout at all, this was a real execution failure (bad args, engine
+    // crashed, etc.) — surface it as an error rather than masquerading as a
+    // SHACL report.
+    if (e.stdout) return e.stdout;
+    die(`SHACL engine (${engine}) failed: ${e.message}`, 3);
   } finally {
     try { unlinkSync(tmpData); } catch {}
     try { unlinkSync(tmpShapes); } catch {}
