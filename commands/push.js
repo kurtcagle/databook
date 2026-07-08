@@ -10,6 +10,13 @@
  *   4. --index-graph <IRI> | "none" — write catalog record to index named graph
  *      after a successful push. Default IRI derived from dataset name.
  *   5. --path <path> — store db:path in the index record (overrides frontmatter path).
+ *
+ * Changes in v1.5.1:
+ *   6. Destructive graph-collision guard — refuse to push (rather than silently
+ *      overwrite) when two or more pushable blocks resolve to the same graph
+ *      IRI under PUT semantics. Most commonly hit via multiple anonymous
+ *      blocks falling through to the default graph. Use --merge (POST) or
+ *      give each block a unique id to opt out.
  */
 
 import { loadDataBookFile, PUSHABLE_LABELS, blockPayload } from '../lib/parser.js';
@@ -171,9 +178,41 @@ export async function runPush(filePath, opts) {
       log(`[push] SKIP  block '${b.id ?? '(unlabelled)'}' (${b.label}) — not a pushable type`);
   }
 
+  const databookId = fm.id;
+
+  // ── Guard: destructive graph-IRI collisions (v1.5.1) ───────────────────────────
+  // PUT replaces the graph on every write. If two or more pushable blocks resolve
+  // to the same graph IRI — most commonly several anonymous blocks all falling
+  // through to the default graph — each PUT silently clobbers the previous one,
+  // with no error and no indication of which block's data survived. Refuse by
+  // default; --merge (POST, additive) sidesteps this entirely.
+  if (!merge) {
+    const resolvedGroups = new Map();
+    for (const b of pushableBlocks) {
+      const graphIri = resolveGraphIri(b, effectiveGraphOpt, fm, databookId, db.filePath, pushableBlocks.length);
+      const key = graphIri === null ? '\u0000default-graph' : graphIri;
+      if (!resolvedGroups.has(key)) resolvedGroups.set(key, []);
+      resolvedGroups.get(key).push(b);
+    }
+    for (const [key, blocksInGroup] of resolvedGroups) {
+      if (blocksInGroup.length > 1) {
+        const graphLabel = key === '\u0000default-graph' ? '(default graph)' : key;
+        const ids = blocksInGroup.map(b => b.id ?? '(unnamed)').join(', ');
+        die(
+          `${blocksInGroup.length} pushable blocks resolve to the same graph ${graphLabel} ` +
+          `(${ids}). This push uses PUT, which replaces the graph on each write — later ` +
+          `blocks would silently overwrite earlier ones.\n` +
+          `  Fix by giving each block a unique <!-- databook:id: ... --> annotation ` +
+          `(so it gets its own #fragment graph), or pass --merge to use POST instead, ` +
+          `or push the blocks individually with --block-id and --graph.`,
+          2,
+        );
+      }
+    }
+  }
+
   // ── Execute pushes ────────────────────────────────────────────────────────────
   let pushed = 0, failed = 0;
-  const databookId = fm.id;
 
   for (const block of pushableBlocks) {
     const graphIri = resolveGraphIri(block, effectiveGraphOpt, fm, databookId, db.filePath, pushableBlocks.length);
