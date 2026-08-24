@@ -1,0 +1,1041 @@
+---
+id: https://ontologist.io/ns/holon/shapes/databook-header-v1
+title: "Holon DataBook Header Shapes (SHACL 1.2)"
+type: databook
+version: 1.0.0
+created: 2026-08-24
+description: >
+  SHACL 1.2 shapes mapping the DataBook YAML frontmatter (spec:
+  github.com/kurtcagle/databook, db: namespace) onto RDF properties in the
+  Holon Graph Architecture namespace (holon:), so the frontmatter — HGA
+  context layer L3 — can be lifted into an RDF 1.2 holon:DataBookHeader
+  node. Every property shape carries an IRI, sh:name, and sh:codeIdentifier
+  (the literal YAML key path), and the shapes graph declares its namespace
+  prefixes via sh:declare.
+domain: https://ontologist.io/ns/holon#
+subject:
+  - SHACL 1.2
+  - RDF 1.2
+  - holon namespace
+  - DataBook frontmatter
+tags:
+  - shacl
+  - holon
+  - databook
+  - rdf12
+shapes:
+  - https://ontologist.io/ns/holon#DataBookHeaderShape
+  - https://ontologist.io/ns/holon#ProcessStampShape
+  - https://ontologist.io/ns/holon#GraphMetadataShape
+graph:
+  namespace: https://ontologist.io/ns/holon#
+  named_graph: https://ontologist.io/ns/holon/shapes/databook-header-v1#graph
+  triple_count: 737
+  subjects: 111
+  rdf_version: "1.1"
+  turtle_version: "1.1"
+  reification: false
+  validator_note: >
+    Shapes conform to the SHACL 1.2 Core vocabulary (sh:codeIdentifier,
+    sh:declare) but the Turtle serialisation itself uses no RDF 1.2
+    reification syntax, so any RDF 1.1- or 1.2-compliant parser (rdflib,
+    N3.js, Apache Jena) can load it without a workaround. Parsed and
+    triple-counted with rdflib 7.x prior to publication.
+process:
+  transformer: "Claude Sonnet 5"
+  transformer_type: llm
+  transformer_iri: https://api.anthropic.com/v1/models/claude-sonnet-5
+  inputs:
+    - iri: https://www.w3.org/TR/2026/WD-shacl12-core-20260803/
+      role: constraint
+      description: "SHACL 1.2 Core Working Draft — normative vocabulary for sh:codeIdentifier, sh:declare, and property-shape IRI conventions."
+    - iri: https://github.com/kurtcagle/databook/blob/main/databook-property-reference.databook.md
+      role: reference
+      description: "Canonical db: namespace YAML frontmatter to RDF mapping — source field inventory for this holon: reprojection."
+  timestamp: 2026-08-24T00:00:00Z
+  output_format: shacl
+  output_media_type: text/turtle
+---
+
+## Vocabulary Index
+
+Classes and properties defined by the shapes below, sorted alphabetically
+first by class, then by property. `Code Identifier` reproduces the
+`sh:codeIdentifier` literal on the corresponding property shape verbatim.
+
+| Class | Property | Code Identifier | Description |
+|---|---|---|---|
+| holon:AgentStamp | holon:agentIri | `process.agent.iri` | Stable IRI identifying the orchestrating agent, when distinct from the transformer itself. |
+| holon:AgentStamp | holon:agentName | `process.agent.name` | Display name of the orchestrating agent, when distinct from the transformer itself. |
+| holon:AgentStamp | holon:agentRole | `process.agent.role` | Role of the orchestrating agent: orchestrator, contributor, reviewer, or validator. |
+| holon:AuthorStamp | holon:authorIri | `author[].iri` | Stable IRI identifying this contributor. |
+| holon:AuthorStamp | holon:authorName | `author[].name` | Full name of this contributor. |
+| holon:AuthorStamp | holon:authorRole | `author[].role` | Role of this contributor: orchestrator, transformer, reviewer, editor, or contributor. |
+| holon:DataBookHeader | holon:author | `author[]` | List of contributors to the DataBook; each entry conforms to AuthorStamp. |
+| holon:DataBookHeader | holon:created | `created` | Calendar date the DataBook was authored or generated (YYYY-MM-DD). |
+| holon:DataBookHeader | holon:description | `description` | One-paragraph abstract for catalogue and discovery use. |
+| holon:DataBookHeader | holon:domain | `domain` | IRI of the primary ontology namespace the data blocks instantiate. |
+| holon:DataBookHeader | holon:graph | `graph` | Metadata about the primary RDF graph payload; conforms to GraphMetadata. |
+| holon:DataBookHeader | holon:imports | `imports[]` | IRIs of other DataBooks whose prefix declarations and namespace context this document inherits. |
+| holon:DataBookHeader | holon:license | `license` | SPDX identifier or IRI of the licence governing the DataBook's content. |
+| holon:DataBookHeader | holon:process | `process` | Provenance stamp of the transformer that produced the DataBook; conforms to ProcessStamp. |
+| holon:DataBookHeader | holon:publisher | `publisher` | Organisation or person responsible for publishing or distributing the DataBook. |
+| holon:DataBookHeader | holon:shapes | `shapes[]` | IRIs of SHACL shapes this DataBook's data is expected to conform to (informational). |
+| holon:DataBookHeader | holon:subject | `subject[]` | Free-text subject terms for catalogue indexing. |
+| holon:DataBookHeader | holon:tag | `tags[]` | Short categorical labels for faceted filtering. |
+| holon:DataBookHeader | holon:title | `title` | Human-readable name of the DataBook. |
+| holon:DataBookHeader | rdf:type | `type` | Structural role of the document: databook, transformer-library, or processor-registry. |
+| holon:DataBookHeader | holon:version | `version` | Semantic version string (MAJOR.MINOR.PATCH) of the DataBook. |
+| holon:GraphMetadata | holon:namedGraph | `graph.named_graph` | Named graph IRI under which this DataBook's content should be loaded. |
+| holon:GraphMetadata | holon:namespace | `graph.namespace` | Primary ontology namespace IRI for the graph content. |
+| holon:GraphMetadata | holon:rdfVersion | `graph.rdf_version` | RDF version of the graph payload: "1.1" or "1.2". |
+| holon:GraphMetadata | holon:subjectCount | `graph.subjects` | Number of distinct subject IRIs in the primary data block. |
+| holon:GraphMetadata | holon:tripleCount | `graph.triple_count` | Total number of triples in the primary data block. |
+| holon:GraphMetadata | holon:turtleVersion | `graph.turtle_version` | Turtle serialisation version used: "1.1" or "1.2". |
+| holon:GraphMetadata | holon:usesReification | `graph.reification` | True if the graph uses RDF 1.2 reification syntax. |
+| holon:GraphMetadata | holon:validatorNote | `graph.validator_note` | Free-text note on validation prerequisites or parser quirks. |
+| holon:OutputSpec | holon:outputFile | `process.output.file` | Local filesystem path for the output file. |
+| holon:OutputSpec | holon:outputGraph | `process.output.graph` | Named graph IRI to load the output into. |
+| holon:OutputSpec | holon:outputUrl | `process.output.url` | Upload endpoint URL for GSP or a similar push target. |
+| holon:ProcessInput | holon:blockId | `process.inputs[].block_id` | Fragment ID of a specific block within the input DataBook. |
+| holon:ProcessInput | holon:description | `process.inputs[].description` | Human-readable note on what this input contributed to the transformation. |
+| holon:ProcessInput | holon:role | `process.inputs[].role` | Role of this input: primary, constraint, context, evidence, reference, or template. |
+| holon:ProcessInput | holon:sourceIri | `process.inputs[].iri` | Stable IRI of the input resource. |
+| holon:ProcessorRegistryHeader | — | `—` | Subclass of DataBookHeader for type: processor-registry; inherits all DataBookHeader properties, no properties of its own. |
+| holon:ProcessStamp | holon:agent | `process.agent` | Person or system that orchestrated the transformation, when distinct from the transformer; conforms to AgentStamp. |
+| holon:ProcessStamp | holon:input | `process.inputs[]` | Source DataBooks or resources consumed by this transformation; conforms to ProcessInput. |
+| holon:ProcessStamp | holon:note | `process.note` | Free-text note on non-determinism, limitations, or manual post-processing. |
+| holon:ProcessStamp | holon:output | `process.output` | Output routing specification; conforms to OutputSpec. |
+| holon:ProcessStamp | holon:outputFormat | `process.output_format` | Fence label of the primary output block type, e.g. turtle, shacl, sparql. |
+| holon:ProcessStamp | holon:outputMediaType | `process.output_media_type` | MIME type of the primary output, e.g. text/turtle. |
+| holon:ProcessStamp | holon:timestamp | `process.timestamp` | ISO 8601 dateTime of the transformation. |
+| holon:ProcessStamp | holon:transformer | `process.transformer` | Display name of the transformer that produced the DataBook's content. |
+| holon:ProcessStamp | holon:transformerIri | `process.transformer_iri` | Stable IRI identifying the specific transformer instance. |
+| holon:ProcessStamp | holon:transformerType | `process.transformer_type` | Category of transformer: llm, human, script, xslt, sparql, shacl, service, composite, library-transform, or registry-processor. |
+| holon:TransformerLibraryHeader | — | `—` | Subclass of DataBookHeader for type: transformer-library; inherits all DataBookHeader properties, no properties of its own. |
+
+## Overview
+
+This DataBook carries the SHACL 1.2 shapes graph that projects a DataBook's
+YAML frontmatter onto the `holon:` namespace (`https://ontologist.io/ns/holon#`),
+for use as the HGA context/boundary layer (L3) of a DataBook-backed holon.
+The shapes graph itself is the primary data block below; its own frontmatter
+here follows the same DataBook spec it describes.
+
+Every `sh:PropertyShape` in the block is a named IRI (never a blank node)
+and carries `sh:name` (human label) and `sh:codeIdentifier` (the literal
+YAML key path — dot-notation for nested keys, a trailing `[]` for
+sequences). A generic YAML→RDF mapper walks the shapes graph and resolves
+each `sh:codeIdentifier` against the parsed frontmatter with a plain
+path-get.
+
+The one frontmatter key with no corresponding property shape is `id`
+itself — it supplies the header node's own subject IRI rather than a
+predicate value.
+
+## SHACL Shapes
+
+<!-- databook:id: holon-databook-header-shapes -->
+<!-- databook:label: Holon DataBook Header Shapes (SHACL 1.2) -->
+<!-- databook:graph: https://ontologist.io/ns/holon/shapes/databook-header-v1 -->
+<!-- mode=printed -->
+```shacl
+# =============================================================================
+# Holon DataBook Header Shapes  (SHACL 1.2)
+# -----------------------------------------------------------------------------
+# Maps the YAML frontmatter of a DataBook (spec: github.com/kurtcagle/databook,
+# canonical namespace https://w3id.org/databook/ns# prefix db:) onto RDF
+# properties in the Holon Graph Architecture namespace
+# (https://ontologist.io/ns/holon#, prefix holon:), so that the frontmatter —
+# HGA context layer L3 (boundary conditions and identity) — can be lifted
+# into an RDF 1.2 holon:DataBookHeader node addressed by the DataBook's own
+# `id` IRI.
+#
+# Conformance: W3C SHACL 1.2 Core, Working Draft 03 August 2026
+#   https://www.w3.org/TR/2026/WD-shacl12-core-20260803/
+#
+# Annotation convention used throughout:
+#   sh:name           human-readable label (rdf:langString, @en)
+#   sh:codeIdentifier  the literal YAML frontmatter key path, exactly as it
+#                      appears in the parsed header object. Dot-notation
+#                      addresses nested mappings (`process.timestamp`);
+#                      a trailing `[]` marks a YAML sequence whose members
+#                      each become one value of sh:path, or one instance of
+#                      the sh:node target shape for object-valued sequences
+#                      (`author[]`, `process.inputs[]`).
+#
+#   A generic YAML->RDF mapper walks this shapes graph, resolves each
+#   sh:codeIdentifier against the parsed frontmatter with a path-get
+#   (lodash.get / operator.attrgetter-style), and asserts sh:path with the
+#   converted value(s) on the header node (or on a fresh blank/IRI node for
+#   sh:node-typed properties, itself validated by the referenced shape).
+#
+# The YAML `id` field is the one frontmatter key with NO corresponding
+# property shape below: it supplies the subject IRI of the header node
+# itself (`@id` in JSON-LD terms), not a predicate value. `type` maps to
+# rdf:type via the DataBookHeaderShape-type property shape, whose sh:in
+# enumerates the three permitted target classes.
+#
+# Every sh:PropertyShape below is declared as its own dereferenceable IRI
+# (never an anonymous blank node), following the ex:PersonShape-ssn
+# convention shown in SHACL 1.2 Core §2.3. Inline blank-node shapes are
+# used only as members of sh:or lists, which is standard SHACL practice and
+# not itself a property shape.
+# =============================================================================
+
+@prefix holon:   <https://ontologist.io/ns/holon#> .
+@prefix db:      <https://w3id.org/databook/ns#> .
+@prefix sh:      <http://www.w3.org/ns/shacl#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+
+# =============================================================================
+# 0. Shapes graph identity + sh:declare prefix table
+# -----------------------------------------------------------------------------
+# sh:declare is defined by SHACL 1.2 SPARQL Extensions: a resource with
+# values for sh:prefix (xsd:string) and sh:namespace (xsd:anyURI) is a
+# prefix declaration; sh:declare on the shapes graph / owl:Ontology subject
+# collects them. This lets any embedded SPARQL constraint in this graph
+# auto-resolve prefixes, and gives non-SPARQL tooling a machine-readable
+# prefix table without depending on the surrounding Turtle @prefix lines.
+# =============================================================================
+
+<https://ontologist.io/ns/holon/shapes/databook-header-v1>
+    a owl:Ontology , sh:ShapesGraph ;
+    rdfs:label "Holon DataBook Header Shapes"@en ;
+    rdfs:comment "SHACL 1.2 shapes mapping DataBook YAML frontmatter onto the holon: namespace for RDF 1.2 conversion."@en ;
+    owl:versionInfo "1.2" ;
+    owl:imports <http://www.w3.org/ns/shacl#> ;
+    sh:declare
+        [ a sh:PrefixDeclaration ; sh:prefix "holon"   ; sh:namespace "https://ontologist.io/ns/holon#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "db"      ; sh:namespace "https://w3id.org/databook/ns#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "xsd"     ; sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "rdf"     ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "rdfs"    ; sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "owl"     ; sh:namespace "http://www.w3.org/2002/07/owl#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "sh"      ; sh:namespace "http://www.w3.org/ns/shacl#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "prov"    ; sh:namespace "http://www.w3.org/ns/prov#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "dcterms" ; sh:namespace "http://purl.org/dc/terms/"^^xsd:anyURI ] .
+
+
+# =============================================================================
+# 1. Classes
+# =============================================================================
+
+holon:DataBookHeader a owl:Class ;
+    rdfs:label "DataBook Header"@en ;
+    rdfs:comment "RDF projection of a DataBook's YAML frontmatter, addressed by the DataBook's own `id` IRI."@en ;
+    rdfs:subClassOf prov:Entity .
+
+holon:TransformerLibraryHeader a owl:Class ;
+    rdfs:label "Transformer Library Header"@en ;
+    rdfs:comment "Header of a DataBook whose YAML `type` is transformer-library."@en ;
+    rdfs:subClassOf holon:DataBookHeader .
+
+holon:ProcessorRegistryHeader a owl:Class ;
+    rdfs:label "Processor Registry Header"@en ;
+    rdfs:comment "Header of a DataBook whose YAML `type` is processor-registry."@en ;
+    rdfs:subClassOf holon:DataBookHeader .
+
+holon:AuthorStamp a owl:Class ;
+    rdfs:label "Author Stamp"@en ;
+    rdfs:comment "One entry of the YAML `author` sequence."@en ;
+    rdfs:subClassOf prov:Agent .
+
+holon:ProcessStamp a owl:Class ;
+    rdfs:label "Process Stamp"@en ;
+    rdfs:comment "RDF projection of the YAML `process` block — provenance of the transformer that produced the DataBook."@en ;
+    rdfs:subClassOf prov:Activity .
+
+holon:ProcessInput a owl:Class ;
+    rdfs:label "Process Input"@en ;
+    rdfs:comment "One entry of the YAML `process.inputs` sequence."@en ;
+    rdfs:subClassOf prov:Entity .
+
+holon:AgentStamp a owl:Class ;
+    rdfs:label "Agent Stamp"@en ;
+    rdfs:comment "RDF projection of the YAML `process.agent` block."@en ;
+    rdfs:subClassOf prov:Agent .
+
+holon:GraphMetadata a owl:Class ;
+    rdfs:label "Graph Metadata"@en ;
+    rdfs:comment "RDF projection of the YAML `graph` block."@en .
+
+holon:OutputSpec a owl:Class ;
+    rdfs:label "Output Spec"@en ;
+    rdfs:comment "RDF projection of the YAML `process.output` block."@en .
+
+
+# =============================================================================
+# 2. Property vocabulary (owl:DatatypeProperty / owl:ObjectProperty)
+# -----------------------------------------------------------------------------
+# One RDF predicate per YAML key (camelCase, per HGA convention). Declared
+# once here, with rdfs:comment as a general vocabulary-level description;
+# the shapes in §4-§7 attach sh:name / sh:codeIdentifier /
+# constraints to a distinct sh:PropertyShape IRI that has this predicate as
+# its sh:path.
+# =============================================================================
+
+holon:title a owl:DatatypeProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range xsd:string ;
+    rdfs:comment "Human-readable name of the DataBook."@en .
+
+holon:version a owl:DatatypeProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range xsd:string ;
+    rdfs:comment "Semantic version string (MAJOR.MINOR.PATCH) of the DataBook."@en .
+
+holon:created a owl:DatatypeProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range xsd:date ;
+    rdfs:comment "Calendar date the DataBook was authored or generated (YYYY-MM-DD)."@en .
+
+holon:description a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:comment "A textual description. On DataBookHeader: a one-paragraph catalogue abstract. On ProcessInput: a note on what the input contributed to the transformation."@en .
+
+holon:author a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range holon:AuthorStamp ;
+    rdfs:comment "A contributor to the DataBook, distinct from the transformation agent."@en .
+
+holon:license a owl:AnnotationProperty ;
+    rdfs:domain holon:DataBookHeader ;
+    rdfs:comment "SPDX identifier or IRI of the licence governing the DataBook's content."@en .
+
+holon:domain a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ;
+    rdfs:comment "IRI of the primary ontology namespace the data blocks instantiate."@en .
+
+holon:subject a owl:DatatypeProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range xsd:string ;
+    rdfs:comment "A free-text subject term for catalogue indexing."@en .
+
+holon:tag a owl:DatatypeProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range xsd:string ;
+    rdfs:comment "A short categorical label for faceted filtering, distinct from subject (full-text search)."@en .
+
+holon:publisher a owl:AnnotationProperty ;
+    rdfs:domain holon:DataBookHeader ;
+    rdfs:comment "Organisation or person responsible for publishing or distributing the DataBook."@en .
+
+holon:imports a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ;
+    rdfs:comment "IRI of another DataBook whose prefix declarations and namespace context this document inherits."@en .
+
+holon:shapes a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ;
+    rdfs:comment "IRI of a SHACL shape this DataBook's data is expected to conform to. Informational only; not enforced at the DataBook level."@en .
+
+holon:graph a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range holon:GraphMetadata ;
+    rdfs:comment "Metadata about the primary RDF graph payload of the DataBook."@en .
+
+holon:process a owl:ObjectProperty ;
+    rdfs:domain holon:DataBookHeader ; rdfs:range holon:ProcessStamp ;
+    rdfs:comment "Provenance stamp of the transformer that produced the DataBook."@en .
+
+holon:authorName a owl:DatatypeProperty ;
+    rdfs:domain holon:AuthorStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Full name of this contributor."@en .
+
+holon:authorIri a owl:ObjectProperty ;
+    rdfs:domain holon:AuthorStamp ;
+    rdfs:comment "Stable IRI identifying this contributor."@en .
+
+holon:authorRole a owl:DatatypeProperty ;
+    rdfs:domain holon:AuthorStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Role of this contributor: orchestrator, transformer, reviewer, editor, or contributor."@en .
+
+holon:namespace a owl:ObjectProperty ;
+    rdfs:domain holon:GraphMetadata ;
+    rdfs:comment "Primary ontology namespace IRI for the graph content."@en .
+
+holon:namedGraph a owl:ObjectProperty ;
+    rdfs:domain holon:GraphMetadata ;
+    rdfs:comment "Named graph IRI under which this DataBook's content should be loaded in a quad-aware triplestore."@en .
+
+holon:tripleCount a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:integer ;
+    rdfs:comment "Total number of triples in the DataBook's primary data block(s)."@en .
+
+holon:subjectCount a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:integer ;
+    rdfs:comment "Number of distinct subject IRIs across the DataBook's primary data block(s)."@en .
+
+holon:rdfVersion a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:string ;
+    rdfs:comment "RDF version of the graph payload: \"1.1\" or \"1.2\"."@en .
+
+holon:turtleVersion a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:string ;
+    rdfs:comment "Turtle serialisation version used: \"1.1\" or \"1.2\"."@en .
+
+holon:usesReification a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:boolean ;
+    rdfs:comment "True when the graph uses RDF 1.2 reification (~) syntax."@en .
+
+holon:validatorNote a owl:DatatypeProperty ;
+    rdfs:domain holon:GraphMetadata ; rdfs:range xsd:string ;
+    rdfs:comment "Free-text note on validation prerequisites or known parser quirks. Not machine-readable; for human inspection only."@en .
+
+holon:transformer a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Display name of the transformer that produced the DataBook's content."@en .
+
+holon:transformerType a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Category of transformer: llm, human, script, xslt, sparql, shacl, service, composite, library-transform, or registry-processor."@en .
+
+holon:transformerIri a owl:ObjectProperty ;
+    rdfs:domain holon:ProcessStamp ;
+    rdfs:comment "Stable IRI identifying the specific transformer instance."@en .
+
+holon:timestamp a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range xsd:dateTime ;
+    rdfs:comment "The moment of transformation, in ISO 8601 combined date-time format."@en .
+
+holon:input a owl:ObjectProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range holon:ProcessInput ;
+    rdfs:comment "A source DataBook or resource consumed by this transformation."@en .
+
+holon:agent a owl:ObjectProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range holon:AgentStamp ;
+    rdfs:comment "The person or system that orchestrated the transformation, when distinct from the transformer itself."@en .
+
+holon:note a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Free-text note about a transformation: non-determinism warnings, known limitations, or manual post-processing steps."@en .
+
+holon:outputFormat a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range xsd:string ;
+    rdfs:comment "The fence label of the primary output block type, e.g. turtle, shacl, sparql, json-ld."@en .
+
+holon:outputMediaType a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range xsd:string ;
+    rdfs:comment "MIME type of the primary output, e.g. text/turtle. More precise than outputFormat for service-oriented consumers."@en .
+
+holon:output a owl:ObjectProperty ;
+    rdfs:domain holon:ProcessStamp ; rdfs:range holon:OutputSpec ;
+    rdfs:comment "Output routing specification for the transformation result."@en .
+
+holon:sourceIri a owl:ObjectProperty ;
+    rdfs:domain holon:ProcessInput ;
+    rdfs:comment "Stable IRI of the input resource."@en .
+
+holon:role a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Role of an input within a transformation: primary, constraint, context, evidence, reference, or template."@en .
+
+holon:blockId a owl:DatatypeProperty ;
+    rdfs:domain holon:ProcessInput ; rdfs:range xsd:string ;
+    rdfs:comment "Fragment ID of a specific block within the input DataBook."@en .
+
+holon:agentName a owl:DatatypeProperty ;
+    rdfs:domain holon:AgentStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Display name of the orchestrating agent, when distinct from the transformer itself."@en .
+
+holon:agentIri a owl:ObjectProperty ;
+    rdfs:domain holon:AgentStamp ;
+    rdfs:comment "Stable IRI identifying the orchestrating agent, when distinct from the transformer itself."@en .
+
+holon:agentRole a owl:DatatypeProperty ;
+    rdfs:domain holon:AgentStamp ; rdfs:range xsd:string ;
+    rdfs:comment "Role of the orchestrating agent: orchestrator, contributor, reviewer, or validator."@en .
+
+holon:outputGraph a owl:ObjectProperty ;
+    rdfs:domain holon:OutputSpec ;
+    rdfs:comment "Named graph IRI to load the transformation output into."@en .
+
+holon:outputUrl a owl:ObjectProperty ;
+    rdfs:domain holon:OutputSpec ;
+    rdfs:comment "Upload endpoint URL for GSP or a similar push target."@en .
+
+holon:outputFile a owl:DatatypeProperty ;
+    rdfs:domain holon:OutputSpec ; rdfs:range xsd:string ;
+    rdfs:comment "Local filesystem path for the output file."@en .
+
+# =============================================================================
+# 3. Property groups  (SHACL 1.2 Core §8.7 sh:group)
+# =============================================================================
+
+holon:IdentityPropertyGroup a sh:PropertyGroup ;
+    sh:name "Identity"@en ; sh:order 1 .
+
+holon:DescriptivePropertyGroup a sh:PropertyGroup ;
+    sh:name "Descriptive"@en ; sh:order 2 .
+
+holon:GraphPropertyGroup a sh:PropertyGroup ;
+    sh:name "Graph Metadata"@en ; sh:order 3 .
+
+holon:ProcessPropertyGroup a sh:PropertyGroup ;
+    sh:name "Process Provenance"@en ; sh:order 4 .
+
+
+# =============================================================================
+# 4. holon:DataBookHeaderShape — top-level frontmatter shape
+# -----------------------------------------------------------------------------
+# Targets all three DataBook header classes. `id` has no property shape
+# here (see file header note); `type` is mapped via rdf:type below.
+# =============================================================================
+
+holon:DataBookHeaderShape
+    a sh:NodeShape ;
+    rdfs:label "DataBook Header Shape"@en ;
+    sh:targetClass holon:DataBookHeader , holon:TransformerLibraryHeader , holon:ProcessorRegistryHeader ;
+    sh:property
+        holon:DataBookHeaderShape-type ,
+        holon:DataBookHeaderShape-title ,
+        holon:DataBookHeaderShape-version ,
+        holon:DataBookHeaderShape-created ,
+        holon:DataBookHeaderShape-description ,
+        holon:DataBookHeaderShape-author ,
+        holon:DataBookHeaderShape-license ,
+        holon:DataBookHeaderShape-domain ,
+        holon:DataBookHeaderShape-subject ,
+        holon:DataBookHeaderShape-tag ,
+        holon:DataBookHeaderShape-publisher ,
+        holon:DataBookHeaderShape-imports ,
+        holon:DataBookHeaderShape-shapes ,
+        holon:DataBookHeaderShape-graph ,
+        holon:DataBookHeaderShape-process .
+
+holon:DataBookHeaderShape-type
+    a sh:PropertyShape ;
+    sh:path rdf:type ;
+    sh:name "document type"@en ;
+    sh:codeIdentifier "type" ;
+    sh:in ( holon:DataBookHeader holon:TransformerLibraryHeader holon:ProcessorRegistryHeader ) ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:group holon:IdentityPropertyGroup ;
+    sh:order 10 ;
+    sh:message "type must be one of databook, transformer-library, processor-registry (mapped to rdf:type)."@en .
+
+holon:DataBookHeaderShape-title
+    a sh:PropertyShape ;
+    sh:path holon:title ;
+    sh:name "title"@en ;
+    sh:codeIdentifier "title" ;
+    sh:datatype xsd:string ;
+    sh:minLength 1 ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:group holon:IdentityPropertyGroup ;
+    sh:order 20 ;
+    sh:message "Every DataBook must have exactly one non-empty title."@en .
+
+holon:DataBookHeaderShape-version
+    a sh:PropertyShape ;
+    sh:path holon:version ;
+    sh:name "version"@en ;
+    sh:codeIdentifier "version" ;
+    sh:datatype xsd:string ;
+    sh:pattern "^\\d+\\.\\d+\\.\\d+$" ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:group holon:IdentityPropertyGroup ;
+    sh:order 30 ;
+    sh:message "version must be a semantic version string (MAJOR.MINOR.PATCH)."@en .
+
+holon:DataBookHeaderShape-created
+    a sh:PropertyShape ;
+    sh:path holon:created ;
+    sh:name "created"@en ;
+    sh:codeIdentifier "created" ;
+    sh:datatype xsd:date ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:group holon:IdentityPropertyGroup ;
+    sh:order 40 ;
+    sh:message "Every DataBook must have a creation date (YYYY-MM-DD)."@en .
+
+holon:DataBookHeaderShape-description
+    a sh:PropertyShape ;
+    sh:path holon:description ;
+    sh:name "description"@en ;
+    sh:codeIdentifier "description" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 50 .
+
+holon:DataBookHeaderShape-author
+    a sh:PropertyShape ;
+    sh:path holon:author ;
+    sh:name "author"@en ;
+    sh:codeIdentifier "author[]" ;
+    sh:node holon:AuthorStampShape ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 60 .
+
+holon:DataBookHeaderShape-license
+    a sh:PropertyShape ;
+    sh:path holon:license ;
+    sh:name "license"@en ;
+    sh:codeIdentifier "license" ;
+    sh:or ( [ sh:datatype xsd:string ] [ sh:nodeKind sh:IRI ] ) ;
+    sh:maxCount 1 ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 70 ;
+    sh:message "license must be an SPDX identifier string or an IRI."@en .
+
+holon:DataBookHeaderShape-domain
+    a sh:PropertyShape ;
+    sh:path holon:domain ;
+    sh:name "domain namespace"@en ;
+    sh:codeIdentifier "domain" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 80 .
+
+holon:DataBookHeaderShape-subject
+    a sh:PropertyShape ;
+    sh:path holon:subject ;
+    sh:name "subject"@en ;
+    sh:codeIdentifier "subject[]" ;
+    sh:datatype xsd:string ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 90 .
+
+holon:DataBookHeaderShape-tag
+    a sh:PropertyShape ;
+    sh:path holon:tag ;
+    sh:name "tags"@en ;
+    sh:codeIdentifier "tags[]" ;
+    sh:datatype xsd:string ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 100 .
+
+holon:DataBookHeaderShape-publisher
+    a sh:PropertyShape ;
+    sh:path holon:publisher ;
+    sh:name "publisher"@en ;
+    sh:codeIdentifier "publisher" ;
+    sh:or ( [ sh:datatype xsd:string ] [ sh:nodeKind sh:IRI ] ) ;
+    sh:maxCount 1 ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 110 .
+
+holon:DataBookHeaderShape-imports
+    a sh:PropertyShape ;
+    sh:path holon:imports ;
+    sh:name "imports"@en ;
+    sh:codeIdentifier "imports[]" ;
+    sh:nodeKind sh:IRI ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 120 .
+
+holon:DataBookHeaderShape-shapes
+    a sh:PropertyShape ;
+    sh:path holon:shapes ;
+    sh:name "governing shapes"@en ;
+    sh:codeIdentifier "shapes[]" ;
+    sh:nodeKind sh:IRI ;
+    sh:group holon:DescriptivePropertyGroup ;
+    sh:order 130 ;
+    sh:message "shapes is informational: IRIs of SHACL shapes this DataBook's data is expected to conform to."@en .
+
+holon:DataBookHeaderShape-graph
+    a sh:PropertyShape ;
+    sh:path holon:graph ;
+    sh:name "graph metadata"@en ;
+    sh:codeIdentifier "graph" ;
+    sh:node holon:GraphMetadataShape ;
+    sh:maxCount 1 ;
+    sh:group holon:GraphPropertyGroup ;
+    sh:order 140 .
+
+holon:DataBookHeaderShape-process
+    a sh:PropertyShape ;
+    sh:path holon:process ;
+    sh:name "process stamp"@en ;
+    sh:codeIdentifier "process" ;
+    sh:node holon:ProcessStampShape ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:group holon:ProcessPropertyGroup ;
+    sh:order 150 ;
+    sh:message "Every DataBook must carry a process provenance stamp."@en .
+
+
+# =============================================================================
+# 5. holon:AuthorStampShape
+# =============================================================================
+
+holon:AuthorStampShape
+    a sh:NodeShape ;
+    rdfs:label "Author Stamp Shape"@en ;
+    sh:targetClass holon:AuthorStamp ;
+    sh:property
+        holon:AuthorStampShape-name ,
+        holon:AuthorStampShape-iri ,
+        holon:AuthorStampShape-role .
+
+holon:AuthorStampShape-name
+    a sh:PropertyShape ;
+    sh:path holon:authorName ;
+    sh:name "name"@en ;
+    sh:codeIdentifier "author[].name" ;
+    sh:datatype xsd:string ;
+    sh:minLength 1 ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Every author entry must carry a name."@en .
+
+holon:AuthorStampShape-iri
+    a sh:PropertyShape ;
+    sh:path holon:authorIri ;
+    sh:name "IRI"@en ;
+    sh:codeIdentifier "author[].iri" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:AuthorStampShape-role
+    a sh:PropertyShape ;
+    sh:path holon:authorRole ;
+    sh:name "role"@en ;
+    sh:codeIdentifier "author[].role" ;
+    sh:datatype xsd:string ;
+    sh:in ( "orchestrator" "transformer" "reviewer" "editor" "contributor" ) ;
+    sh:maxCount 1 .
+
+
+# =============================================================================
+# 6. holon:GraphMetadataShape
+# =============================================================================
+
+holon:GraphMetadataShape
+    a sh:NodeShape ;
+    rdfs:label "Graph Metadata Shape"@en ;
+    sh:targetClass holon:GraphMetadata ;
+    sh:property
+        holon:GraphMetadataShape-namespace ,
+        holon:GraphMetadataShape-namedGraph ,
+        holon:GraphMetadataShape-tripleCount ,
+        holon:GraphMetadataShape-subjectCount ,
+        holon:GraphMetadataShape-rdfVersion ,
+        holon:GraphMetadataShape-turtleVersion ,
+        holon:GraphMetadataShape-usesReification ,
+        holon:GraphMetadataShape-validatorNote .
+
+holon:GraphMetadataShape-namespace
+    a sh:PropertyShape ;
+    sh:path holon:namespace ;
+    sh:name "namespace"@en ;
+    sh:codeIdentifier "graph.namespace" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:GraphMetadataShape-namedGraph
+    a sh:PropertyShape ;
+    sh:path holon:namedGraph ;
+    sh:name "named graph"@en ;
+    sh:codeIdentifier "graph.named_graph" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:GraphMetadataShape-tripleCount
+    a sh:PropertyShape ;
+    sh:path holon:tripleCount ;
+    sh:name "triple count"@en ;
+    sh:codeIdentifier "graph.triple_count" ;
+    sh:datatype xsd:integer ;
+    sh:minInclusive 0 ;
+    sh:maxCount 1 ;
+    sh:message "triple_count must be a non-negative integer."@en .
+
+holon:GraphMetadataShape-subjectCount
+    a sh:PropertyShape ;
+    sh:path holon:subjectCount ;
+    sh:name "subject count"@en ;
+    sh:codeIdentifier "graph.subjects" ;
+    sh:datatype xsd:integer ;
+    sh:minInclusive 0 ;
+    sh:maxCount 1 .
+
+holon:GraphMetadataShape-rdfVersion
+    a sh:PropertyShape ;
+    sh:path holon:rdfVersion ;
+    sh:name "RDF version"@en ;
+    sh:codeIdentifier "graph.rdf_version" ;
+    sh:datatype xsd:string ;
+    sh:in ( "1.1" "1.2" ) ;
+    sh:maxCount 1 ;
+    sh:message "rdf_version must be '1.1' or '1.2'."@en .
+
+holon:GraphMetadataShape-turtleVersion
+    a sh:PropertyShape ;
+    sh:path holon:turtleVersion ;
+    sh:name "Turtle version"@en ;
+    sh:codeIdentifier "graph.turtle_version" ;
+    sh:datatype xsd:string ;
+    sh:in ( "1.1" "1.2" ) ;
+    sh:maxCount 1 ;
+    sh:message "turtle_version must be '1.1' or '1.2'."@en .
+
+holon:GraphMetadataShape-usesReification
+    a sh:PropertyShape ;
+    sh:path holon:usesReification ;
+    sh:name "uses RDF 1.2 reification"@en ;
+    sh:codeIdentifier "graph.reification" ;
+    sh:datatype xsd:boolean ;
+    sh:maxCount 1 .
+
+holon:GraphMetadataShape-validatorNote
+    a sh:PropertyShape ;
+    sh:path holon:validatorNote ;
+    sh:name "validator note"@en ;
+    sh:codeIdentifier "graph.validator_note" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+
+# =============================================================================
+# 7. holon:ProcessStampShape, holon:ProcessInputShape, holon:AgentStampShape,
+#    holon:OutputSpecShape
+# =============================================================================
+
+holon:ProcessStampShape
+    a sh:NodeShape ;
+    rdfs:label "Process Stamp Shape"@en ;
+    sh:targetClass holon:ProcessStamp ;
+    sh:property
+        holon:ProcessStampShape-transformer ,
+        holon:ProcessStampShape-transformerType ,
+        holon:ProcessStampShape-transformerIri ,
+        holon:ProcessStampShape-timestamp ,
+        holon:ProcessStampShape-input ,
+        holon:ProcessStampShape-agent ,
+        holon:ProcessStampShape-note ,
+        holon:ProcessStampShape-outputFormat ,
+        holon:ProcessStampShape-outputMediaType ,
+        holon:ProcessStampShape-output .
+
+holon:ProcessStampShape-transformer
+    a sh:PropertyShape ;
+    sh:path holon:transformer ;
+    sh:name "transformer"@en ;
+    sh:codeIdentifier "process.transformer" ;
+    sh:datatype xsd:string ;
+    sh:minLength 1 ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Process stamp must name the transformer."@en .
+
+holon:ProcessStampShape-transformerType
+    a sh:PropertyShape ;
+    sh:path holon:transformerType ;
+    sh:name "transformer type"@en ;
+    sh:codeIdentifier "process.transformer_type" ;
+    sh:datatype xsd:string ;
+    sh:in ( "llm" "human" "script" "xslt" "sparql" "shacl"
+            "service" "composite" "library-transform" "registry-processor" ) ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "transformer_type must be one of the defined vocabulary values."@en .
+
+holon:ProcessStampShape-transformerIri
+    a sh:PropertyShape ;
+    sh:path holon:transformerIri ;
+    sh:name "transformer IRI"@en ;
+    sh:codeIdentifier "process.transformer_iri" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:ProcessStampShape-timestamp
+    a sh:PropertyShape ;
+    sh:path holon:timestamp ;
+    sh:name "timestamp"@en ;
+    sh:codeIdentifier "process.timestamp" ;
+    sh:datatype xsd:dateTime ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Process stamp must have an ISO 8601 dateTime timestamp."@en .
+
+holon:ProcessStampShape-input
+    a sh:PropertyShape ;
+    sh:path holon:input ;
+    sh:name "inputs"@en ;
+    sh:codeIdentifier "process.inputs[]" ;
+    sh:node holon:ProcessInputShape ;
+    sh:minCount 1 ;
+    sh:message "Process stamp must declare at least one input."@en .
+
+holon:ProcessStampShape-agent
+    a sh:PropertyShape ;
+    sh:path holon:agent ;
+    sh:name "agent"@en ;
+    sh:codeIdentifier "process.agent" ;
+    sh:node holon:AgentStampShape ;
+    sh:maxCount 1 .
+
+holon:ProcessStampShape-note
+    a sh:PropertyShape ;
+    sh:path holon:note ;
+    sh:name "note"@en ;
+    sh:codeIdentifier "process.note" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+holon:ProcessStampShape-outputFormat
+    a sh:PropertyShape ;
+    sh:path holon:outputFormat ;
+    sh:name "output format"@en ;
+    sh:codeIdentifier "process.output_format" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+holon:ProcessStampShape-outputMediaType
+    a sh:PropertyShape ;
+    sh:path holon:outputMediaType ;
+    sh:name "output media type"@en ;
+    sh:codeIdentifier "process.output_media_type" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+holon:ProcessStampShape-output
+    a sh:PropertyShape ;
+    sh:path holon:output ;
+    sh:name "output routing"@en ;
+    sh:codeIdentifier "process.output" ;
+    sh:node holon:OutputSpecShape ;
+    sh:maxCount 1 .
+
+holon:ProcessInputShape
+    a sh:NodeShape ;
+    rdfs:label "Process Input Shape"@en ;
+    sh:targetClass holon:ProcessInput ;
+    sh:property
+        holon:ProcessInputShape-sourceIri ,
+        holon:ProcessInputShape-role ,
+        holon:ProcessInputShape-description ,
+        holon:ProcessInputShape-blockId .
+
+holon:ProcessInputShape-sourceIri
+    a sh:PropertyShape ;
+    sh:path holon:sourceIri ;
+    sh:name "IRI"@en ;
+    sh:codeIdentifier "process.inputs[].iri" ;
+    sh:nodeKind sh:IRI ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Each process input must declare its source IRI."@en .
+
+holon:ProcessInputShape-role
+    a sh:PropertyShape ;
+    sh:path holon:role ;
+    sh:name "role"@en ;
+    sh:codeIdentifier "process.inputs[].role" ;
+    sh:datatype xsd:string ;
+    sh:in ( "primary" "constraint" "context" "evidence" "reference" "template" ) ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Input role must be one of: primary, constraint, context, evidence, reference, template."@en .
+
+holon:ProcessInputShape-description
+    a sh:PropertyShape ;
+    sh:path holon:description ;
+    sh:name "description"@en ;
+    sh:codeIdentifier "process.inputs[].description" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+holon:ProcessInputShape-blockId
+    a sh:PropertyShape ;
+    sh:path holon:blockId ;
+    sh:name "block ID"@en ;
+    sh:codeIdentifier "process.inputs[].block_id" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+holon:AgentStampShape
+    a sh:NodeShape ;
+    rdfs:label "Agent Stamp Shape"@en ;
+    sh:targetClass holon:AgentStamp ;
+    sh:property
+        holon:AgentStampShape-name ,
+        holon:AgentStampShape-iri ,
+        holon:AgentStampShape-role .
+
+holon:AgentStampShape-name
+    a sh:PropertyShape ;
+    sh:path holon:agentName ;
+    sh:name "name"@en ;
+    sh:codeIdentifier "process.agent.name" ;
+    sh:datatype xsd:string ;
+    sh:minLength 1 ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:message "Agent stamp must carry a name."@en .
+
+holon:AgentStampShape-iri
+    a sh:PropertyShape ;
+    sh:path holon:agentIri ;
+    sh:name "IRI"@en ;
+    sh:codeIdentifier "process.agent.iri" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:AgentStampShape-role
+    a sh:PropertyShape ;
+    sh:path holon:agentRole ;
+    sh:name "role"@en ;
+    sh:codeIdentifier "process.agent.role" ;
+    sh:datatype xsd:string ;
+    sh:in ( "orchestrator" "contributor" "reviewer" "validator" ) ;
+    sh:maxCount 1 .
+
+holon:OutputSpecShape
+    a sh:NodeShape ;
+    rdfs:label "Output Spec Shape"@en ;
+    sh:targetClass holon:OutputSpec ;
+    sh:property
+        holon:OutputSpecShape-graph ,
+        holon:OutputSpecShape-url ,
+        holon:OutputSpecShape-file .
+
+holon:OutputSpecShape-graph
+    a sh:PropertyShape ;
+    sh:path holon:outputGraph ;
+    sh:name "output graph"@en ;
+    sh:codeIdentifier "process.output.graph" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:OutputSpecShape-url
+    a sh:PropertyShape ;
+    sh:path holon:outputUrl ;
+    sh:name "output URL"@en ;
+    sh:codeIdentifier "process.output.url" ;
+    sh:nodeKind sh:IRI ;
+    sh:maxCount 1 .
+
+holon:OutputSpecShape-file
+    a sh:PropertyShape ;
+    sh:path holon:outputFile ;
+    sh:name "output file"@en ;
+    sh:codeIdentifier "process.output.file" ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 .
+
+# =============================================================================
+# End of holon-databook-header-shapes.ttl
+# =============================================================================
+
+```
+
+## Validation Notes
+
+- Parsed cleanly with `rdflib` 7.x, Turtle grammar — 737 triples, 111 named
+  subjects, no blank-node property shapes.
+- All 46 `sh:PropertyShape` instances carry both `sh:name` and
+  `sh:codeIdentifier`; all 44 OWL property declarations carry `rdfs:comment`.
+- `sh:declare` on the shapes graph subject supplies 9 prefix declarations
+  (`holon`, `db`, `xsd`, `rdf`, `rdfs`, `owl`, `sh`, `prov`, `dcterms`).
+- The `id` field of a source DataBook has no matching property shape by
+  design — it becomes the subject IRI of the `holon:DataBookHeader` node,
+  not one of its predicate values.
