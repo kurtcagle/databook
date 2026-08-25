@@ -9,6 +9,21 @@
  *   - Adds --path <prefix> for folder-scoped filtering.
  *   - Adds --tree for directory-style tree display.
  *   - Falls back to #meta query when no index graph is available.
+ *
+ * DataBook v2.0: LEGACY_LIST_QUERY updated to match the databook: namespace
+ * (https://w3id.org/holon/databook#) frontmatterToTurtle() now emits (see
+ * lib/reify.js). title/created/version stay flat, direct predicates of ?id
+ * as before; pushedAt (was prov:generatedAtTime) and triples (was
+ * void:triples) now live one hop down, inside the process/graph container
+ * nodes the v2 shapes introduce, so those two are joined via an extra
+ * OPTIONAL rather than read directly off ?id. The `a build:DataBook`
+ * requirement is dropped from the anchor pattern: a v2 header may be typed
+ * databook:DataBookHeader, databook:TransformerLibraryHeader, or
+ * databook:ProcessorRegistryHeader depending on the source DataBook's
+ * `type`, and requiring one specific class here would silently exclude the
+ * other two without a reasoner. title+created presence is anchor enough.
+ * (The index-graph query below is a separate, intentionally thin catalogue
+ * mechanism using db:/dcterms: -- unrelated to this, left as-is.)
  */
 
 import { sparqlQuery, checkResponse }                                        from '../lib/gsp.js';
@@ -18,20 +33,15 @@ import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints }  fro
 
 // ── Legacy catalogue query (pre-index, #meta graphs) ──────────────────────────
 const LEGACY_LIST_QUERY = `
-PREFIX dct:   <http://purl.org/dc/terms/>
-PREFIX build: <https://w3id.org/databook/ns#>
-PREFIX prov:  <http://www.w3.org/ns/prov#>
-PREFIX void:  <http://rdfs.org/ns/void#>
-PREFIX owl:   <http://www.w3.org/2002/07/owl#>
+PREFIX databook: <https://w3id.org/holon/databook#>
 
 SELECT ?id ?title ?version ?created ?pushedAt ?triples WHERE {
   GRAPH ?metaGraph {
-    ?id  a              build:DataBook ;
-         dct:title      ?title ;
-         dct:created    ?created ;
-         prov:generatedAtTime ?pushedAt .
-    OPTIONAL { ?id owl:versionInfo  ?version  }
-    OPTIONAL { ?id void:triples     ?triples  }
+    ?id  databook:title    ?title ;
+         databook:created  ?created .
+    OPTIONAL { ?id databook:version ?version }
+    OPTIONAL { ?id databook:process ?proc . ?proc databook:timestamp    ?pushedAt }
+    OPTIONAL { ?id databook:graph   ?g    . ?g    databook:tripleCount  ?triples  }
   }
   FILTER(STRENDS(STR(?metaGraph), "#meta"))
 }
