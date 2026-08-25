@@ -731,6 +731,9 @@ function resolveProcessorType(store, stageIri) {
 // ─── Child process ─────────────────────────────────────────────────────────
 
 function spawnCapture(command, args, config) {
+  if (/[;&|`$<>\n\r]/.test(command)) {
+    return Promise.reject(new Error(`E_INVALID_CMD: unsafe characters in command: ${command}`));
+  }
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
     if (config?.jvm_flags) env.JVM_ARGS = config.jvm_flags;
