@@ -24,6 +24,66 @@ All notable changes to the DataBook format specification and reference CLI are d
 - `implementations/js/lib/parser.js` synced with the root parser (it had
   been behind since the pre-fence annotation work in April).
 
+### Header namespace re-homed (databook:)
+
+- **Changed:** the `databook:` header-projection namespace moves from
+  `https://w3id.org/holon/databook#` to `https://w3id.org/databook/header#`
+  (module version 2.0.0-alpha.1 → 2.0.0-alpha.2). The header projection is
+  what every DataBook does regardless of architecture, so it belongs to
+  DataBook core rather than under `holon/`; see the DataBook Specification
+  Primer §4 for the profile model this is part of, and §4.5 specifically
+  for the re-home argument. `owl:priorVersion` on the shapes graph subject
+  now carries both this and the original ontologist.io draft it superseded
+  on 2026-08-24. No property shape, cardinality, `sh:codeIdentifier`, or
+  constraint changed — only the namespace.
+- **Fixed:** `lib/reify.js` no longer hard-codes the namespace. A new
+  `getDatabookNamespace()` reads it from the bundled shapes file's own
+  `sh:declare` table (parsed once, cached with the rest of the shapes
+  index), so a future re-home is a one-file edit to
+  `schema/holon-databook-header.shacl.ttl`, not a code change.
+  `commands/list.js`'s legacy catalogue query is now built at call time
+  (`buildLegacyListQuery()`) from the same source, replacing the
+  module-level `LEGACY_LIST_QUERY` constant.
+- **Added:** `migrations/2026-09-07-header-namespace-rehome.sparql` for
+  anyone with data already pushed under the old namespace — rewrites all
+  44 predicates and 9 classes this module defines, across both named
+  graphs and the default graph, idempotently. Generated mechanically from
+  the shapes index rather than hand-typed, and verified both against
+  rdflib (in-memory, named + default graph) and against a real Apache
+  Jena 6.2.0 TDB2 store via `tdb2.tdbupdate`: 11 triples in, 11 out, zero
+  residual old-namespace triples in either check.
+- `implementations/js/lib/reify.js` and
+  `implementations/js/schema/holon-databook-header.shacl.ttl` synced with
+  root.
+
+### `mode` reconciled with `display_only`
+
+- **Fixed:** the parser's pre-existing `display_only` field — which
+  `commands/create.js` reads when folding an existing DataBook's blocks
+  into a new one, and which `commands/head.js` reports — now also treats
+  a block's `mode` (`printed`, `hidden`, or `reference`) as display-only,
+  matching what those three mode values have always meant in the spec.
+  `mode=executed` and `mode=rendered` do not force display-only; a
+  rendered or executed block's payload status is governed by its fence
+  label exactly as before. The pre-existing `databook:display-only: true`
+  key is unchanged and still works standalone — this is additive, not a
+  replacement. New exported `MODE_DISPLAY_ONLY_VALUES` set in
+  `lib/parser.js`.
+- **Correction to the note below:** on inspection, `push` and `process`
+  turned out not to consult `display_only` at all — `push` filters
+  purely by fence label (`PUSHABLE_LABELS`), and `process` runs an
+  unrelated `processor-registry`/`build:` DAG pipeline with no `mode`
+  awareness. The actual (and only) consumer of `display_only` from
+  `lib/parser.js` is `commands/create.js`'s "merge an existing DataBook"
+  path; `commands/ingest.js`'s similarly-named display-only concept is a
+  self-contained classification over plain Markdown input, unrelated to
+  this field, and is out of scope here.
+- **Added:** `test/mode-display-only.databook.md` fixture (one block per
+  `mode` value, plus the legacy-key and label-only cases) and
+  `test/parser-display-only.test.mjs`; both copied to
+  `implementations/js/test/`. No regressions across the 16 pre-existing
+  fixtures.
+
 ### Not yet done (see the primer, §16 item 1)
 
 - `mode=printed|hidden|reference` is parsed but not yet applied: `push` and

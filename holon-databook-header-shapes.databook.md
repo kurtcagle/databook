@@ -1,23 +1,32 @@
 ---
-id: https://w3id.org/holon/databook#
+id: https://w3id.org/databook/header#
 title: "Holon DataBook Header Shapes (SHACL 1.2) — DataBook v2.0 Draft Module"
 type: databook
-version: 2.0.0-alpha.1
+version: 2.0.0-alpha.2
 created: 2026-08-24
 description: >
   SHACL 1.2 shapes mapping the DataBook YAML frontmatter (spec:
-  github.com/kurtcagle/databook) onto RDF properties in a dedicated bridge
-  namespace, https://w3id.org/holon/databook# (databook:) — not the core Holon
-  Graph Architecture ontology namespace directly. The bridge namespace
-  isolates DataBook-spec churn from the core ontology's term-space while
-  the frontmatter — HGA context layer L3 — is lifted into an RDF 1.2
-  databook:DataBookHeader node. Every property shape carries an IRI, sh:name,
-  and sh:codeIdentifier (the literal YAML key path), and the shapes graph
-  declares its namespace prefixes via sh:declare. Proposed as a candidate
-  building block for DataBook v2.0, offered for review by the HCG DataBook
-  WG; supersedes an earlier same-day draft published directly under the
-  core holon: namespace (see process.inputs and process.note below).
-domain: https://w3id.org/holon/databook#
+  github.com/kurtcagle/databook) onto RDF properties in a dedicated
+  namespace, https://w3id.org/databook/header# (databook:) — not the core
+  Holon Graph Architecture ontology namespace, and, as of 2026-09-07, no
+  longer under holon/ at all. The header-projection namespace isolates
+  DataBook-spec churn from any single architecture's term-space while the
+  frontmatter — HGA context layer L3, for a DataBook produced under the
+  holon profile — is lifted into an RDF 1.2 databook:DataBookHeader node.
+  Every property shape carries an IRI, sh:name, and sh:codeIdentifier (the
+  literal YAML key path), and the shapes graph declares its namespace
+  prefixes via sh:declare. Re-homed 2026-09-07 (v2.0.0-alpha.2) from
+  https://w3id.org/holon/databook# to this DataBook-owned namespace, per
+  the profile model proposed in the DataBook Specification Primer (S4):
+  the header projection is what every DataBook does regardless of
+  architecture, so it belongs to DataBook core, not to any one profile.
+  The vacated holon/ namespace is available to become the Holon Graph
+  Architecture's own profile IRI (primer S4.6); not yet published as one.
+  Proposed as a candidate building block for DataBook v2.0, offered for
+  review by the HCG DataBook WG; supersedes an earlier same-day draft
+  published directly under the core holon: namespace (see process.inputs
+  and process.note below).
+domain: https://w3id.org/databook/header#
 subject:
   - SHACL 1.2
   - RDF 1.2
@@ -30,12 +39,12 @@ tags:
   - rdf12
   - v2-draft
 shapes:
-  - https://w3id.org/holon/databook#DataBookHeaderShape
-  - https://w3id.org/holon/databook#ProcessStampShape
-  - https://w3id.org/holon/databook#GraphMetadataShape
+  - https://w3id.org/databook/header#DataBookHeaderShape
+  - https://w3id.org/databook/header#ProcessStampShape
+  - https://w3id.org/databook/header#GraphMetadataShape
 graph:
-  namespace: https://w3id.org/holon/databook#
-  named_graph: https://w3id.org/holon/databook#graph
+  namespace: https://w3id.org/databook/header#
+  named_graph: https://w3id.org/databook/header#graph
   triple_count: 738
   subjects: 111
   rdf_version: "1.1"
@@ -61,12 +70,25 @@ process:
     - iri: https://ontologist.io/ns/holon/shapes/databook-header-v1
       role: reference
       description: "Prior same-day draft of this shapes module, published directly under the core holon: (ontologist.io/ns/holon#) namespace; superseded after a namespace-design discussion (see process.note)."
-  timestamp: 2026-08-24T02:00:00Z
+    - iri: https://w3id.org/holon/databook/primer
+      role: template
+      description: "The DataBook Specification Primer, S4 -- proposed the profile model this re-home implements: the header projection is core, not any one architecture's profile, so it belongs under a DataBook-owned namespace."
+  timestamp: 2026-09-07T20:00:00Z
   agent:
     name: Kurt Cagle
     role: orchestrator
   note: >
-    Reworked onto a dedicated bridge namespace, https://w3id.org/holon/databook#,
+    2026-09-07 (v2.0.0-alpha.2): re-homed from https://w3id.org/holon/databook#
+    to this namespace. The 2026-08-24 note below explains why the header
+    projection was already kept out of the core HGA ontology namespace; the
+    same reasoning extends one step further under the profile model the
+    primer proposes -- the header projection is what every DataBook does,
+    regardless of which architecture (if any) it is produced under, so it
+    is DataBook core rather than a holon-specific bridge. owl:priorVersion
+    on the shapes graph subject now carries both prior IRIs. No property
+    shape, cardinality, or sh:codeIdentifier changed; only the namespace.
+
+    2026-08-24 (v2.0.0-alpha.1): reworked onto a dedicated bridge namespace
     following a design discussion: the core HGA ontology should stay free of
     DataBook-spec churn and generic term collisions (title, version, role,
     timestamp, etc.), and DataBook's own build: vocabulary
@@ -141,7 +163,7 @@ first by class, then by property. `Code Identifier` reproduces the
 
 This DataBook carries the SHACL 1.2 shapes graph that projects a DataBook's
 YAML frontmatter onto a **dedicated bridge namespace**,
-`https://w3id.org/holon/databook#` (prefix `databook:`) — deliberately *not* the
+`https://w3id.org/databook/header#` (prefix `databook:`) — deliberately *not* the
 core Holon Graph Architecture ontology namespace
 (`https://ontologist.io/ns/holon#`, prefix `holon:`). The frontmatter
 describes DataBook document and provenance metadata, which is a different
@@ -181,7 +203,7 @@ predicate value.
 
 <!-- databook:id: holon-databook-header-shapes -->
 <!-- databook:label: Holon DataBook Header Shapes (SHACL 1.2) -->
-<!-- databook:graph: https://w3id.org/holon/databook# -->
+<!-- databook:graph: https://w3id.org/databook/header# -->
 <!-- mode=printed -->
 ```shacl
 # =============================================================================
@@ -189,7 +211,7 @@ predicate value.
 # -----------------------------------------------------------------------------
 # Maps the YAML frontmatter of a DataBook (spec: github.com/kurtcagle/databook,
 # canonical build vocabulary https://w3id.org/databook/ns# prefix db:) onto RDF
-# properties in a DEDICATED bridge namespace, https://w3id.org/holon/databook#
+# properties in a DEDICATED bridge namespace, https://w3id.org/databook/header#
 # (prefix databook:) — NOT the core Holon Graph Architecture ontology namespace
 # (https://ontologist.io/ns/holon#, prefix holon:) directly.
 #
@@ -206,7 +228,18 @@ predicate value.
 # core ontology defines one, belongs here as a single deliberate
 # rdfs:subClassOf assertion, not 44 properties sharing a term-space.
 #
-# Note the prefix `databook:` (this module, https://w3id.org/holon/databook#)
+# Re-homed 2026-09-07 (v2.0.0-alpha.2) from https://w3id.org/holon/databook#
+# to this namespace: the header projection is what every DataBook does
+# regardless of architecture, so it belongs under the DataBook namespace
+# proper, owned by the DataBook WG -- not under holon/, which is now free
+# to become the Holon Graph Architecture's own *profile* of DataBook (see
+# the DataBook Specification Primer, S4, for the profile model this move
+# is part of). owl:priorVersion below records the move machine-readably;
+# nothing else in this file changed -- same 46 property shapes, same
+# sh:codeIdentifier values, same cardinalities and constraints, only the
+# @prefix databook: target IRI differs.
+#
+# Note the prefix `databook:` (this module, https://w3id.org/databook/header#)
 # is distinct from `db:` (DataBook's existing build/pipeline vocabulary,
 # https://w3id.org/databook/ns# — build:Target, build:Stage, etc.). Both
 # names derive from "DataBook" but address different concerns: `db:` is
@@ -245,7 +278,7 @@ predicate value.
 # practice, not itself a property shape.
 # =============================================================================
 
-@prefix databook:     <https://w3id.org/holon/databook#> .
+@prefix databook:     <https://w3id.org/databook/header#> .
 @prefix db:      <https://w3id.org/databook/ns#> .
 @prefix sh:      <http://www.w3.org/ns/shacl#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
@@ -267,15 +300,16 @@ predicate value.
 # prefix table without depending on the surrounding Turtle @prefix lines.
 # =============================================================================
 
-<https://w3id.org/holon/databook#>
+<https://w3id.org/databook/header#>
     a owl:Ontology , sh:ShapesGraph ;
     rdfs:label "Holon DataBook Header Shapes"@en ;
     rdfs:comment "SHACL 1.2 shapes mapping DataBook YAML frontmatter onto a dedicated databook: bridge namespace, for RDF 1.2 conversion into the HGA context layer (L3). Distinct from the core Holon Graph Architecture ontology namespace."@en ;
-    owl:versionInfo "2.0.0-alpha.1" ;
-    owl:priorVersion <https://ontologist.io/ns/holon/shapes/databook-header-v1> ;
+    owl:versionInfo "2.0.0-alpha.2" ;
+    owl:priorVersion <https://ontologist.io/ns/holon/shapes/databook-header-v1> ,
+                      <https://w3id.org/holon/databook#> ;
     owl:imports <http://www.w3.org/ns/shacl#> ;
     sh:declare
-        [ a sh:PrefixDeclaration ; sh:prefix "databook" ; sh:namespace "https://w3id.org/holon/databook#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "databook" ; sh:namespace "https://w3id.org/databook/header#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "db"      ; sh:namespace "https://w3id.org/databook/ns#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "xsd"     ; sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "rdf"     ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,

@@ -1,0 +1,179 @@
+# migrations/2026-09-07-header-namespace-rehome.sparql
+#
+# One-off migration for any store already holding triples projected under
+# the pre-2026-09-07 databook: header namespace (https://w3id.org/holon/databook#,
+# module version 2.0.0-alpha.1) -- rewrites every predicate and rdf:type value
+# this module defines to the re-homed namespace (https://w3id.org/databook/header#,
+# 2.0.0-alpha.2). See the DataBook Specification Primer S4.5 for why, and
+# schema/holon-databook-header.shacl.ttl's own header comment for the
+# machine-readable owl:priorVersion record.
+#
+# Generated mechanically from the (already-renamed) bundled shapes file's own
+# property-shape and target-class lists (lib/reify.js's loadShapesIndex()),
+# not hand-typed -- 44 predicates, 9 classes, matching the
+# module's own vocabulary index exactly. Regenerate rather than hand-edit if
+# the module's term list ever changes.
+#
+# Does NOT touch subject or object IRIs that happen to use the old namespace
+# for something other than these predicates/classes (there are none in this
+# module -- every databook: term is a predicate or a class, never a subject
+# minted under this namespace itself). Does NOT touch the shapes graph
+# itself if you have also pushed the SHACL shapes to your store; re-push the
+# updated schema/holon-databook-header.shacl.ttl instead.
+#
+# Usage (Apache Jena):
+#   riot --update --file=migrations/2026-09-07-header-namespace-rehome.sparql \
+#        --dataset=/path/to/tdb2
+# or against a running Fuseki via its update endpoint:
+#   curl -X POST --data-binary @migrations/2026-09-07-header-namespace-rehome.sparql \
+#        -H 'Content-Type: application/sparql-update' \
+#        http://localhost:3030/ds/update
+#
+# Idempotent: running it twice is a no-op the second time, since by then no
+# triple matches the old-namespace patterns in the WHERE clause. Runs across
+# all named graphs (GRAPH ?g) as well as the default graph, in one pass per
+# term via VALUES, rather than one UPDATE per predicate.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+# ── Predicates: rewrite <old:term> to <new:term> wherever it appears as p ──
+DELETE { GRAPH ?g { ?s ?oldP ?o } }
+INSERT { GRAPH ?g { ?s ?newP ?o } }
+WHERE {
+  VALUES (?oldP ?newP) {
+  ( <https://w3id.org/holon/databook#agent> <https://w3id.org/databook/header#agent> )
+  ( <https://w3id.org/holon/databook#agentIri> <https://w3id.org/databook/header#agentIri> )
+  ( <https://w3id.org/holon/databook#agentName> <https://w3id.org/databook/header#agentName> )
+  ( <https://w3id.org/holon/databook#agentRole> <https://w3id.org/databook/header#agentRole> )
+  ( <https://w3id.org/holon/databook#author> <https://w3id.org/databook/header#author> )
+  ( <https://w3id.org/holon/databook#authorIri> <https://w3id.org/databook/header#authorIri> )
+  ( <https://w3id.org/holon/databook#authorName> <https://w3id.org/databook/header#authorName> )
+  ( <https://w3id.org/holon/databook#authorRole> <https://w3id.org/databook/header#authorRole> )
+  ( <https://w3id.org/holon/databook#blockId> <https://w3id.org/databook/header#blockId> )
+  ( <https://w3id.org/holon/databook#created> <https://w3id.org/databook/header#created> )
+  ( <https://w3id.org/holon/databook#description> <https://w3id.org/databook/header#description> )
+  ( <https://w3id.org/holon/databook#domain> <https://w3id.org/databook/header#domain> )
+  ( <https://w3id.org/holon/databook#graph> <https://w3id.org/databook/header#graph> )
+  ( <https://w3id.org/holon/databook#imports> <https://w3id.org/databook/header#imports> )
+  ( <https://w3id.org/holon/databook#input> <https://w3id.org/databook/header#input> )
+  ( <https://w3id.org/holon/databook#license> <https://w3id.org/databook/header#license> )
+  ( <https://w3id.org/holon/databook#namedGraph> <https://w3id.org/databook/header#namedGraph> )
+  ( <https://w3id.org/holon/databook#namespace> <https://w3id.org/databook/header#namespace> )
+  ( <https://w3id.org/holon/databook#note> <https://w3id.org/databook/header#note> )
+  ( <https://w3id.org/holon/databook#output> <https://w3id.org/databook/header#output> )
+  ( <https://w3id.org/holon/databook#outputFile> <https://w3id.org/databook/header#outputFile> )
+  ( <https://w3id.org/holon/databook#outputFormat> <https://w3id.org/databook/header#outputFormat> )
+  ( <https://w3id.org/holon/databook#outputGraph> <https://w3id.org/databook/header#outputGraph> )
+  ( <https://w3id.org/holon/databook#outputMediaType> <https://w3id.org/databook/header#outputMediaType> )
+  ( <https://w3id.org/holon/databook#outputUrl> <https://w3id.org/databook/header#outputUrl> )
+  ( <https://w3id.org/holon/databook#process> <https://w3id.org/databook/header#process> )
+  ( <https://w3id.org/holon/databook#publisher> <https://w3id.org/databook/header#publisher> )
+  ( <https://w3id.org/holon/databook#rdfVersion> <https://w3id.org/databook/header#rdfVersion> )
+  ( <https://w3id.org/holon/databook#role> <https://w3id.org/databook/header#role> )
+  ( <https://w3id.org/holon/databook#shapes> <https://w3id.org/databook/header#shapes> )
+  ( <https://w3id.org/holon/databook#sourceIri> <https://w3id.org/databook/header#sourceIri> )
+  ( <https://w3id.org/holon/databook#subject> <https://w3id.org/databook/header#subject> )
+  ( <https://w3id.org/holon/databook#subjectCount> <https://w3id.org/databook/header#subjectCount> )
+  ( <https://w3id.org/holon/databook#tag> <https://w3id.org/databook/header#tag> )
+  ( <https://w3id.org/holon/databook#timestamp> <https://w3id.org/databook/header#timestamp> )
+  ( <https://w3id.org/holon/databook#title> <https://w3id.org/databook/header#title> )
+  ( <https://w3id.org/holon/databook#transformer> <https://w3id.org/databook/header#transformer> )
+  ( <https://w3id.org/holon/databook#transformerIri> <https://w3id.org/databook/header#transformerIri> )
+  ( <https://w3id.org/holon/databook#transformerType> <https://w3id.org/databook/header#transformerType> )
+  ( <https://w3id.org/holon/databook#tripleCount> <https://w3id.org/databook/header#tripleCount> )
+  ( <https://w3id.org/holon/databook#turtleVersion> <https://w3id.org/databook/header#turtleVersion> )
+  ( <https://w3id.org/holon/databook#usesReification> <https://w3id.org/databook/header#usesReification> )
+  ( <https://w3id.org/holon/databook#validatorNote> <https://w3id.org/databook/header#validatorNote> )
+  ( <https://w3id.org/holon/databook#version> <https://w3id.org/databook/header#version> )
+  }
+  GRAPH ?g { ?s ?oldP ?o }
+} ;
+
+DELETE { ?s ?oldP ?o }
+INSERT { ?s ?newP ?o }
+WHERE {
+  VALUES (?oldP ?newP) {
+  ( <https://w3id.org/holon/databook#agent> <https://w3id.org/databook/header#agent> )
+  ( <https://w3id.org/holon/databook#agentIri> <https://w3id.org/databook/header#agentIri> )
+  ( <https://w3id.org/holon/databook#agentName> <https://w3id.org/databook/header#agentName> )
+  ( <https://w3id.org/holon/databook#agentRole> <https://w3id.org/databook/header#agentRole> )
+  ( <https://w3id.org/holon/databook#author> <https://w3id.org/databook/header#author> )
+  ( <https://w3id.org/holon/databook#authorIri> <https://w3id.org/databook/header#authorIri> )
+  ( <https://w3id.org/holon/databook#authorName> <https://w3id.org/databook/header#authorName> )
+  ( <https://w3id.org/holon/databook#authorRole> <https://w3id.org/databook/header#authorRole> )
+  ( <https://w3id.org/holon/databook#blockId> <https://w3id.org/databook/header#blockId> )
+  ( <https://w3id.org/holon/databook#created> <https://w3id.org/databook/header#created> )
+  ( <https://w3id.org/holon/databook#description> <https://w3id.org/databook/header#description> )
+  ( <https://w3id.org/holon/databook#domain> <https://w3id.org/databook/header#domain> )
+  ( <https://w3id.org/holon/databook#graph> <https://w3id.org/databook/header#graph> )
+  ( <https://w3id.org/holon/databook#imports> <https://w3id.org/databook/header#imports> )
+  ( <https://w3id.org/holon/databook#input> <https://w3id.org/databook/header#input> )
+  ( <https://w3id.org/holon/databook#license> <https://w3id.org/databook/header#license> )
+  ( <https://w3id.org/holon/databook#namedGraph> <https://w3id.org/databook/header#namedGraph> )
+  ( <https://w3id.org/holon/databook#namespace> <https://w3id.org/databook/header#namespace> )
+  ( <https://w3id.org/holon/databook#note> <https://w3id.org/databook/header#note> )
+  ( <https://w3id.org/holon/databook#output> <https://w3id.org/databook/header#output> )
+  ( <https://w3id.org/holon/databook#outputFile> <https://w3id.org/databook/header#outputFile> )
+  ( <https://w3id.org/holon/databook#outputFormat> <https://w3id.org/databook/header#outputFormat> )
+  ( <https://w3id.org/holon/databook#outputGraph> <https://w3id.org/databook/header#outputGraph> )
+  ( <https://w3id.org/holon/databook#outputMediaType> <https://w3id.org/databook/header#outputMediaType> )
+  ( <https://w3id.org/holon/databook#outputUrl> <https://w3id.org/databook/header#outputUrl> )
+  ( <https://w3id.org/holon/databook#process> <https://w3id.org/databook/header#process> )
+  ( <https://w3id.org/holon/databook#publisher> <https://w3id.org/databook/header#publisher> )
+  ( <https://w3id.org/holon/databook#rdfVersion> <https://w3id.org/databook/header#rdfVersion> )
+  ( <https://w3id.org/holon/databook#role> <https://w3id.org/databook/header#role> )
+  ( <https://w3id.org/holon/databook#shapes> <https://w3id.org/databook/header#shapes> )
+  ( <https://w3id.org/holon/databook#sourceIri> <https://w3id.org/databook/header#sourceIri> )
+  ( <https://w3id.org/holon/databook#subject> <https://w3id.org/databook/header#subject> )
+  ( <https://w3id.org/holon/databook#subjectCount> <https://w3id.org/databook/header#subjectCount> )
+  ( <https://w3id.org/holon/databook#tag> <https://w3id.org/databook/header#tag> )
+  ( <https://w3id.org/holon/databook#timestamp> <https://w3id.org/databook/header#timestamp> )
+  ( <https://w3id.org/holon/databook#title> <https://w3id.org/databook/header#title> )
+  ( <https://w3id.org/holon/databook#transformer> <https://w3id.org/databook/header#transformer> )
+  ( <https://w3id.org/holon/databook#transformerIri> <https://w3id.org/databook/header#transformerIri> )
+  ( <https://w3id.org/holon/databook#transformerType> <https://w3id.org/databook/header#transformerType> )
+  ( <https://w3id.org/holon/databook#tripleCount> <https://w3id.org/databook/header#tripleCount> )
+  ( <https://w3id.org/holon/databook#turtleVersion> <https://w3id.org/databook/header#turtleVersion> )
+  ( <https://w3id.org/holon/databook#usesReification> <https://w3id.org/databook/header#usesReification> )
+  ( <https://w3id.org/holon/databook#validatorNote> <https://w3id.org/databook/header#validatorNote> )
+  ( <https://w3id.org/holon/databook#version> <https://w3id.org/databook/header#version> )
+  }
+  ?s ?oldP ?o
+  FILTER NOT EXISTS { GRAPH ?g2 { ?s ?oldP ?o } }
+} ;
+
+# ── Classes: rewrite rdf:type object values from <old:Class> to <new:Class> ──
+DELETE { GRAPH ?g { ?s rdf:type ?oldC } }
+INSERT { GRAPH ?g { ?s rdf:type ?newC } }
+WHERE {
+  VALUES (?oldC ?newC) {
+  ( <https://w3id.org/holon/databook#AgentStamp> <https://w3id.org/databook/header#AgentStamp> )
+  ( <https://w3id.org/holon/databook#AuthorStamp> <https://w3id.org/databook/header#AuthorStamp> )
+  ( <https://w3id.org/holon/databook#DataBookHeader> <https://w3id.org/databook/header#DataBookHeader> )
+  ( <https://w3id.org/holon/databook#GraphMetadata> <https://w3id.org/databook/header#GraphMetadata> )
+  ( <https://w3id.org/holon/databook#OutputSpec> <https://w3id.org/databook/header#OutputSpec> )
+  ( <https://w3id.org/holon/databook#ProcessInput> <https://w3id.org/databook/header#ProcessInput> )
+  ( <https://w3id.org/holon/databook#ProcessStamp> <https://w3id.org/databook/header#ProcessStamp> )
+  ( <https://w3id.org/holon/databook#ProcessorRegistryHeader> <https://w3id.org/databook/header#ProcessorRegistryHeader> )
+  ( <https://w3id.org/holon/databook#TransformerLibraryHeader> <https://w3id.org/databook/header#TransformerLibraryHeader> )
+  }
+  GRAPH ?g { ?s rdf:type ?oldC }
+} ;
+
+DELETE { ?s rdf:type ?oldC }
+INSERT { ?s rdf:type ?newC }
+WHERE {
+  VALUES (?oldC ?newC) {
+  ( <https://w3id.org/holon/databook#AgentStamp> <https://w3id.org/databook/header#AgentStamp> )
+  ( <https://w3id.org/holon/databook#AuthorStamp> <https://w3id.org/databook/header#AuthorStamp> )
+  ( <https://w3id.org/holon/databook#DataBookHeader> <https://w3id.org/databook/header#DataBookHeader> )
+  ( <https://w3id.org/holon/databook#GraphMetadata> <https://w3id.org/databook/header#GraphMetadata> )
+  ( <https://w3id.org/holon/databook#OutputSpec> <https://w3id.org/databook/header#OutputSpec> )
+  ( <https://w3id.org/holon/databook#ProcessInput> <https://w3id.org/databook/header#ProcessInput> )
+  ( <https://w3id.org/holon/databook#ProcessStamp> <https://w3id.org/databook/header#ProcessStamp> )
+  ( <https://w3id.org/holon/databook#ProcessorRegistryHeader> <https://w3id.org/databook/header#ProcessorRegistryHeader> )
+  ( <https://w3id.org/holon/databook#TransformerLibraryHeader> <https://w3id.org/databook/header#TransformerLibraryHeader> )
+  }
+  ?s rdf:type ?oldC
+  FILTER NOT EXISTS { GRAPH ?g2 { ?s rdf:type ?oldC } }
+}

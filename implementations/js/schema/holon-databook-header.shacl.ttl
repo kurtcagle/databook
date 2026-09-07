@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # Maps the YAML frontmatter of a DataBook (spec: github.com/kurtcagle/databook,
 # canonical build vocabulary https://w3id.org/databook/ns# prefix db:) onto RDF
-# properties in a DEDICATED bridge namespace, https://w3id.org/holon/databook#
+# properties in a DEDICATED bridge namespace, https://w3id.org/databook/header#
 # (prefix databook:) — NOT the core Holon Graph Architecture ontology namespace
 # (https://ontologist.io/ns/holon#, prefix holon:) directly.
 #
@@ -20,7 +20,18 @@
 # core ontology defines one, belongs here as a single deliberate
 # rdfs:subClassOf assertion, not 44 properties sharing a term-space.
 #
-# Note the prefix `databook:` (this module, https://w3id.org/holon/databook#)
+# Re-homed 2026-09-07 (v2.0.0-alpha.2) from https://w3id.org/holon/databook#
+# to this namespace: the header projection is what every DataBook does
+# regardless of architecture, so it belongs under the DataBook namespace
+# proper, owned by the DataBook WG -- not under holon/, which is now free
+# to become the Holon Graph Architecture's own *profile* of DataBook (see
+# the DataBook Specification Primer, S4, for the profile model this move
+# is part of). owl:priorVersion below records the move machine-readably;
+# nothing else in this file changed -- same 46 property shapes, same
+# sh:codeIdentifier values, same cardinalities and constraints, only the
+# @prefix databook: target IRI differs.
+#
+# Note the prefix `databook:` (this module, https://w3id.org/databook/header#)
 # is distinct from `db:` (DataBook's existing build/pipeline vocabulary,
 # https://w3id.org/databook/ns# — build:Target, build:Stage, etc.). Both
 # names derive from "DataBook" but address different concerns: `db:` is
@@ -59,7 +70,7 @@
 # practice, not itself a property shape.
 # =============================================================================
 
-@prefix databook:     <https://w3id.org/holon/databook#> .
+@prefix databook:     <https://w3id.org/databook/header#> .
 @prefix db:      <https://w3id.org/databook/ns#> .
 @prefix sh:      <http://www.w3.org/ns/shacl#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
@@ -81,15 +92,16 @@
 # prefix table without depending on the surrounding Turtle @prefix lines.
 # =============================================================================
 
-<https://w3id.org/holon/databook#>
+<https://w3id.org/databook/header#>
     a owl:Ontology , sh:ShapesGraph ;
     rdfs:label "Holon DataBook Header Shapes"@en ;
     rdfs:comment "SHACL 1.2 shapes mapping DataBook YAML frontmatter onto a dedicated databook: bridge namespace, for RDF 1.2 conversion into the HGA context layer (L3). Distinct from the core Holon Graph Architecture ontology namespace."@en ;
-    owl:versionInfo "2.0.0-alpha.1" ;
-    owl:priorVersion <https://ontologist.io/ns/holon/shapes/databook-header-v1> ;
+    owl:versionInfo "2.0.0-alpha.2" ;
+    owl:priorVersion <https://ontologist.io/ns/holon/shapes/databook-header-v1> ,
+                      <https://w3id.org/holon/databook#> ;
     owl:imports <http://www.w3.org/ns/shacl#> ;
     sh:declare
-        [ a sh:PrefixDeclaration ; sh:prefix "databook" ; sh:namespace "https://w3id.org/holon/databook#"^^xsd:anyURI ] ,
+        [ a sh:PrefixDeclaration ; sh:prefix "databook" ; sh:namespace "https://w3id.org/databook/header#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "db"      ; sh:namespace "https://w3id.org/databook/ns#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "xsd"     ; sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ] ,
         [ a sh:PrefixDeclaration ; sh:prefix "rdf"     ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,

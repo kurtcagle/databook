@@ -10,9 +10,11 @@
  *   - Adds --tree for directory-style tree display.
  *   - Falls back to #meta query when no index graph is available.
  *
- * DataBook v2.0: LEGACY_LIST_QUERY updated to match the databook: namespace
- * (https://w3id.org/holon/databook#) frontmatterToTurtle() now emits (see
- * lib/reify.js). title/created/version stay flat, direct predicates of ?id
+ * DataBook v2.0: the legacy catalogue query (buildLegacyListQuery(), below)
+ * was updated to match the databook: namespace frontmatterToTurtle() emits
+ * (see lib/reify.js), and — 2026-09-07 — to read that namespace from
+ * getDatabookNamespace() rather than hard-coding it, so a re-home of the
+ * bundled shapes file's own namespace needs no change here. title/created/version stay flat, direct predicates of ?id
  * as before; pushedAt (was prov:generatedAtTime) and triples (was
  * void:triples) now live one hop down, inside the process/graph container
  * nodes the v2 shapes introduce, so those two are joined via an extra
@@ -27,13 +29,21 @@
  */
 
 import { sparqlQuery, checkResponse }                                        from '../lib/gsp.js';
+import { getDatabookNamespace }                                              from '../lib/reify.js';
 import { getDefaultEndpoint }                                                from '../lib/config.js';
 import { resolveAuth }                                                       from '../lib/auth.js';
 import { resolveServer, listServers, LOCALHOST_FUSEKI, datasetToEndpoints }  from '../lib/serverConfig.js';
 
 // ── Legacy catalogue query (pre-index, #meta graphs) ──────────────────────────
-const LEGACY_LIST_QUERY = `
-PREFIX databook: <https://w3id.org/holon/databook#>
+// Built lazily, not as a module-level constant: the databook: namespace comes
+// from getDatabookNamespace(), which reads the bundled shapes file's own
+// sh:declare table (lib/reify.js) rather than a value hard-coded here. A
+// namespace re-home is then a one-file edit to the shapes file; this query
+// follows with no code change.
+function buildLegacyListQuery() {
+  const ns = getDatabookNamespace();
+  return `
+PREFIX databook: <${ns}>
 
 SELECT ?id ?title ?version ?created ?pushedAt ?triples WHERE {
   GRAPH ?metaGraph {
@@ -47,6 +57,7 @@ SELECT ?id ?title ?version ?created ?pushedAt ?triples WHERE {
 }
 ORDER BY DESC(?pushedAt)
 `.trim();
+}
 
 // ── Index graph catalogue query (v1.5.0) ──────────────────────────────────────
 function buildIndexQuery(indexGraphIri, pathPrefix) {
@@ -132,7 +143,7 @@ export async function runList(opts) {
   if (fmt === 'sparql') {
     const query = useIndex
       ? buildIndexQuery(indexGraphIri, pathPrefix)
-      : LEGACY_LIST_QUERY;
+      : buildLegacyListQuery();
     process.stdout.write(query + '\n');
     return;
   }
@@ -147,7 +158,7 @@ export async function runList(opts) {
   // ── Execute query ──────────────────────────────────────────────────────────
   const query = useIndex
     ? buildIndexQuery(indexGraphIri, pathPrefix)
-    : LEGACY_LIST_QUERY;
+    : buildLegacyListQuery();
 
   let result;
   try {

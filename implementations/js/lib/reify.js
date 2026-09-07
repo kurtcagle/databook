@@ -34,8 +34,6 @@ const rdf = p => `${RDF}${p}`;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHAPES_PATH = path.join(__dirname, '..', 'schema', 'holon-databook-header.shacl.ttl');
 
-const DATABOOK_NS = 'https://w3id.org/holon/databook#';
-
 // The YAML `type` string -> class local name. Not derivable from the shapes
 // graph itself (sh:in lists valid classes, not the YAML tokens that select
 // among them), so this one small table is intentionally hand-maintained.
@@ -118,8 +116,44 @@ export function loadShapesIndex() {
     (targetClassByShape[q.subject.value] ??= []).push(q.object.value);
   }
 
-  _shapesIndex = { propertyShapes, targetClassByShape };
+  // sh:declare prefix table (SHACL 1.2 SPARQL Extensions): a resource with
+  // sh:prefix + sh:namespace declared on the shapes-graph subject itself.
+  // This is what makes the bundled shapes file the single source of truth
+  // for the databook: namespace -- rename the file's own sh:declare entry
+  // (and the @prefix line, and the ontology subject IRI, which are the same
+  // string) and every consumer of getDatabookNamespace() follows with no
+  // code change, the same way a new frontmatter field needs only a new
+  // property shape, not a matching code change, per the module comment above.
+  const prefixMap = {};
+  for (const q of store.getQuads(null, sh('declare'), null, null)) {
+    const declNode = q.object;
+    const prefixTerm = store.getObjects(declNode, sh('prefix'), null)[0];
+    const nsTerm     = store.getObjects(declNode, sh('namespace'), null)[0];
+    if (prefixTerm && nsTerm) prefixMap[prefixTerm.value] = nsTerm.value;
+  }
+
+  _shapesIndex = { propertyShapes, targetClassByShape, prefixMap };
   return _shapesIndex;
+}
+
+/**
+ * The databook: header-projection namespace, read from the bundled shapes
+ * file's own sh:declare table rather than hard-coded. Whatever IRI the
+ * shapes file itself declares under the "databook" prefix is canonical --
+ * a namespace re-home (see the DataBook Specification Primer, S4.5) is
+ * then a one-file edit to schema/holon-databook-header.shacl.ttl, not a
+ * code change here or in any command that calls this function.
+ * @returns {string}
+ */
+export function getDatabookNamespace() {
+  const { prefixMap } = loadShapesIndex();
+  const ns = prefixMap['databook'];
+  if (!ns) {
+    throw new Error(
+      'getDatabookNamespace: bundled shapes file has no sh:declare entry for the "databook" prefix'
+    );
+  }
+  return ns;
 }
 
 // ─── Tree walking over sh:codeIdentifier paths ────────────────────────────────
@@ -268,6 +302,7 @@ function walk(subjectIri, obj, parentCodeId, shapesIndex, out) {
  */
 export function frontmatterToTurtle(frontmatter, filePath = null) {
   const shapesIndex = loadShapesIndex();
+  const DATABOOK_NS = getDatabookNamespace();
 
   const subjectIri = frontmatter.id ?? `file://${filePath ?? 'unknown'}`;
   const cls = TYPE_CLASS[frontmatter.type] ?? 'DataBookHeader';
