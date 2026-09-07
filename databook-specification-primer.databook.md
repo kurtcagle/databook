@@ -2,7 +2,7 @@
 id: https://w3id.org/holon/databook/primer
 title: "The DataBook Specification — A Primer for the HCG DataBook Working Group"
 type: databook
-version: 1.1.0
+version: 1.1.1
 created: 2026-09-07
 author:
   - name: Kurt Cagle
@@ -105,6 +105,11 @@ process:
     v1.1.0 (same day): §4 replaced by the profile model and §2.1, §8, §9,
     §14–§18 revised to match; the machine-readable blocks deliberately keep
     the published namespace so every validation claim stays reproducible.
+    v1.1.1 (same day): corrected an overstatement — the reference CLI
+    implements the pre-fence header zone but not block directives; running
+    its parser on this document leaves 18 of 19 blocks anonymous, because a
+    trailing directive line terminates the parser's backward walk. §1, §8,
+    §16 and §17 now say so.
   output_format: turtle
   output_media_type: text/turtle
 ---
@@ -128,7 +133,7 @@ from that. This document tags every rule with the layer it belongs to:
 | Tag | Meaning | Where it lives today |
 |---|---|---|
 | **[v1.1]** | Canonical, published, ratified | `SPEC.md` in the `kurtcagle/databook` repository, dated 2026-04-25 |
-| **[v1.2]** | Implemented and in daily use, but not yet written into `SPEC.md` or `CHANGELOG.md` | The reference CLI (`implementations/js/`) and the LLM skill that produces DataBooks |
+| **[v1.2]** | In daily use, but not yet written into `SPEC.md` or `CHANGELOG.md` | The pre-fence header zone is in the reference CLI (`lib/parser.js`); block directives are in the LLM skill only — the CLI does not parse them (§8.7) |
 | **[v2.0]** | Proposed; offered to the WG for review | The header shapes module at `https://w3id.org/holon/databook#`, version 2.0.0-alpha.1 |
 | **[proposed]** | Proposed in this primer, 2026-09-07; in no published artefact | The profile model (§4) and everything it touches |
 
@@ -1690,7 +1695,25 @@ The safe form is an **indented code block**: four spaces, no fence at all.
 Every embedded example in this primer, including the complete worked example
 in §13.1, is written that way. §16 asks the WG to write a rule.
 
-### 8.7 The headers in this document
+### 8.7 The reference CLI and this section
+
+`lib/parser.js` implements §8.1 — it collects contiguous
+`<!-- databook:key: value -->` lines above the fence, tolerates one blank
+line, and prefers pre-fence values over legacy inline ones. It does **not**
+implement §8.3: there is no directive parsing anywhere in the CLI. Worse,
+its backward walk stops at the first line that is not a `databook:` key, so
+a zone written to the §8.4 ordering — directives last — is truncated before
+the walk ever reaches `databook:id`. Run against this document, the CLI
+sees 18 of 19 blocks as anonymous; only §13.2's payload, whose zone happens
+to end in a `databook:` key, keeps its identity. Every DataBook produced to
+the v1.2 convention is affected the same way, and `push`'s anonymous-block
+collision guard, `extract --id`, and fragment resolution all fail on them.
+The fix is small — accept directive lines in the walk and collect them —
+and is §16 item 1's first concrete deliverable. The CLI also honours a
+`databook:display-only: true` key that appears in no spec text; it is the
+CLI's ad hoc `mode=printed`, and the two should be reconciled.
+
+### 8.8 The headers in this document
 
 Every fenced block in this primer is a live instance of §8. The SHACL
 signatures in §5 are `mode=printed` documentation; the frontmatter excerpts
@@ -2487,12 +2510,16 @@ to core (§4.1).
 Everything below is a decision this document could not make on the WG's
 behalf. They are ordered by how much else depends on them.
 
-1. **Ratify the v1.2 block-header conventions into `SPEC.md`.** The
-   pre-fence comment zone (§8.1), the directive syntax and `mode` vocabulary
-   (§8.3), the ordering rule (§8.4), and the deprecation of
-   `databook:executable` are implemented in the reference CLI and used by
-   every DataBook produced since April, but `SPEC.md` and `CHANGELOG.md` still
-   stop at v1.1. Until this is written down, "conformant" is ambiguous.
+1. **Ratify the v1.2 block-header conventions into `SPEC.md` — and make
+   the CLI honour them.** The pre-fence comment zone (§8.1) is implemented
+   in the reference CLI; the directive syntax and `mode` vocabulary (§8.3),
+   the ordering rule (§8.4), and the deprecation of `databook:executable`
+   are used by every DataBook produced since April but exist only in the
+   LLM skill. The CLI's parser does not read directive lines and is
+   truncated by them (§8.7), so it currently mis-parses every conforming
+   v1.2 document. `SPEC.md` and `CHANGELOG.md` still stop at v1.1. Until
+   the text and the parser agree, "conformant" is ambiguous in practice as
+   well as on paper.
 
 2. **Adopt the header module as the v2.0 normative projection — and
    re-home it.** Decide that the seven node shapes in §5 are normative and
@@ -2603,10 +2630,10 @@ behalf. They are ordered by how much else depends on them.
 | 0.9 | 2026-04-12 | Internal consistency reference. Bare `---` frontmatter; namespace `databook.org/ns/build#`; core structure, block label vocabulary, process stamp, manifest pattern. |
 | 1.0 | 2026-04-19 | Frontmatter wrapped in `<script language="application/yaml">`; namespace moved to `https://w3id.org/databook/ns#`; `transformer-library` and `processor-registry` document types; `library-transform` and `registry-processor` transformer types; `build:outputType`. Parameterised queries inadvertently dropped. |
 | 1.1 | 2026-04-25 | **Current canonical.** Bare `---` restored as canonical, `<script>` demoted to accepted alternative. Parameterised queries, `databook:param` / `executable` / `runtime`, and `process.output*` restored. Reference implementation named. |
-| 1.2 *(practice)* | from 2026-04-28 | Block header moved to the pre-fence comment zone; block directives (`mode=`, `endpoint=`, `cache=`, `authority=`, `version=`, `result-iri=`, `expires=`); `databook:executable` deprecated. Implemented in the CLI (v1.2.0 → 1.4.x) and the LLM skill; not yet in `SPEC.md`. |
+| 1.2 *(practice)* | from 2026-04-28 | Block header moved to the pre-fence comment zone — implemented in the CLI (v1.2.0 → 1.4.x). Block directives (`mode=`, `endpoint=`, `cache=`, `authority=`, `version=`, `result-iri=`, `expires=`) and the deprecation of `databook:executable` — in the LLM skill only; the CLI does not parse them (§8.7). Not yet in `SPEC.md`. |
 | 2.0.0-alpha.1 *(candidate)* | 2026-08-24 | Header module: `databook:` bridge namespace at `https://w3id.org/holon/databook#`; seven SHACL 1.2 node shapes and 46 property shapes with `sh:codeIdentifier`; PROV-O subclassing; `sh:declare` prefix table; `owl:priorVersion` link to the same-day `holon:`-namespaced draft it replaced; `version` pattern widened to full SemVer. Offered to the HCG DataBook WG. |
 | — | 2026-09-07 | This primer, v1.0.0. |
-| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. |
+| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. v1.1.1: corrected the claim that the CLI implements directives (§8.7). |
 
 ## 18. References
 
@@ -2635,5 +2662,5 @@ behalf. They are ordered by how much else depends on them.
 *This primer is a DataBook. Its primary data block is the RDF projection of
 the worked example in §13; its frontmatter describes that block; its process
 stamp cites the shapes module it documents as a `constraint` input. Version
-1.1.0, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
+1.1.1, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
 Working Group.*
