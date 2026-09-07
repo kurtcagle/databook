@@ -2,6 +2,34 @@
 
 All notable changes to the DataBook format specification and reference CLI are documented here.
 
+## [Unreleased]
+
+### CLI
+
+- **Fixed:** `lib/parser.js` now recognises v1.2 block directive lines
+  (`<!-- mode=printed -->`, `<!-- mode=executed endpoint=<iri> cache=true -->`)
+  in the pre-fence comment zone and collects them into a new `directives`
+  map on each block (with `mode` as a convenience field). Previously the
+  backward walk that gathers `databook:` annotations stopped at the first
+  non-annotation line, so any block whose zone ended in a directive — the
+  conventional ordering — lost its `databook:id` and all other pre-fence
+  metadata. Run against the DataBook Specification Primer, the old parser
+  returned 18 of 19 blocks as anonymous; the new one returns none.
+  Directive lines *inside* a fence remain payload, as specified. No change
+  to how any existing fixture parses. Added `parseDirectiveLine()`.
+- **Added:** `test/directives.databook.md` fixture and
+  `test/parser-directives.test.mjs`; `npm test` now runs `node --test`
+  before the smoke check. Set `PRIMER=<path>` to also assert the primer
+  parses cleanly.
+- `implementations/js/lib/parser.js` synced with the root parser (it had
+  been behind since the pre-fence annotation work in April).
+
+### Not yet done (see the primer, §16 item 1)
+
+- `mode=printed|hidden|reference` is parsed but not yet applied: `push` and
+  `process` still decide display-only by label and by the CLI's own
+  `databook:display-only: true` key. Reconciling the two is the next slice.
+
 ---
 
 ## [1.1] — 2026-04-25

@@ -1,13 +1,13 @@
 {
   "name": "databook-cli",
   "version": "1.0.0",
-  "description": "DataBook CLI — inspect, push, pull, and process DataBook semantic documents",
+  "description": "DataBook CLI \u2014 inspect, push, pull, and process DataBook semantic documents",
   "type": "module",
   "bin": {
     "databook": "./bin/databook.js"
   },
   "scripts": {
-    "test": "node bin/databook.js --help"
+    "test": "node --test 'test/*.test.mjs' && node bin/databook.js --help"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",

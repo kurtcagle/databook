@@ -8,6 +8,30 @@
  *
  * The <script> form is silently accepted for backwards compatibility.
  * New DataBooks should always use bare --- frontmatter.
+ *
+ * Block annotation forms (both accepted):
+ *   1. Pre-fence  (v1.2+, canonical): <!-- databook:id: block-id --> on the line
+ *      immediately before the opening fence. Multiple annotation lines may appear
+ *      consecutively. A single blank line between the annotations and the fence
+ *      is tolerated (skipped) — there's no other block it could plausibly belong
+ *      to, so this closes a common formatting trap without introducing ambiguity.
+ *   2. Inline     (v1.1,  legacy):    <!-- databook:id: block-id --> as the first
+ *      line(s) inside the fenced block. Still accepted for backwards compatibility.
+ *
+ * When both forms are present for the same key, pre-fence takes priority.
+ *
+ * Block directives (v1.2+): processing instructions in the same pre-fence
+ * zone, written as un-namespaced key=value pairs:
+ *   <!-- mode=printed -->
+ *   <!-- mode=executed endpoint=<urn:jena:local> cache=true -->
+ * One or more pairs per comment line; several directive lines may follow one
+ * another. They are distinguished from databook: annotations by their shape
+ * alone — no `databook:` prefix, `=` rather than `: ` — and are collected
+ * into the block's `directives` map. Directive lines are accepted anywhere
+ * in the pre-fence zone; by convention they come last (after databook:id and
+ * the other databook: keys), which is exactly why the backward walk below
+ * must not stop at them: a walk that halts on the first non-annotation line
+ * would never reach databook:id on a conventionally-ordered block.
  */
 
 import { readFileSync } from 'fs';
@@ -20,6 +44,9 @@ const RE_SCRIPT_CLOSE = /^<\/script>\s*$/;
 const RE_FENCE_OPEN   = /^```([\w][\w.\-+]*)\s*$/;
 const RE_FENCE_CLOSE  = /^```\s*$/;
 const RE_META_COMMENT = /^<!--\s*databook:([\w-]+):\s*(.*?)\s*-->\s*$/;
+// Block directive line: one or more un-namespaced key=value tokens.
+// Values may not contain whitespace; IRIs are conventionally angle-bracketed.
+const RE_DIRECTIVE    = /^<!--\s*((?:[\w-]+=\S+\s*)+)-->\s*$/;
 const RE_YAML_DELIM   = /^---\s*$/;
 
 // Block labels that are display-only by default (not RDF/SPARQL payloads)
@@ -51,6 +78,15 @@ export function loadDataBookFile(filePath) {
   } catch (e) {
     throw new Error(`file not found: ${filePath}`);
   }
+  // Normalise for cross-platform compatibility before any parsing.
+  // Strip UTF-8 BOM (added by Windows Notepad / some editors) and
+  // normalise CRLF / bare-CR line endings to LF.  This is necessary
+  // because split('\n') on a CRLF file leaves \r attached to every
+  // line, which can break YAML frontmatter detection and regex anchors
+  // in edge cases (e.g. BOM + CRLF, bare \r, mixed endings).
+  content = content.replace(/^\uFEFF/, '');
+  content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
   const db = parseDataBook(content, filePath);
   if (!db) throw new Error(`no DataBook frontmatter found in: ${filePath}`);
   return db;
@@ -63,6 +99,10 @@ export function loadDataBookFile(filePath) {
  * @returns {{ frontmatter: object, blocks: Block[], rawBody: string, filePath: string }|null}
  */
 export function parseDataBook(content, filePath = null) {
+  // Normalise line endings here too so callers passing raw strings
+  // (e.g. from HTTP responses or tests) get consistent behaviour.
+  content = content.replace(/^\uFEFF/, '');
+  content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const lines = content.split('\n');
 
   const { frontmatter, bodyStart, form } = extractFrontmatter(lines);
@@ -155,18 +195,29 @@ function extractYamlFromBlock(lines) {
 
 /**
  * Parse fenced blocks from document body.
+ *
+ * Annotation look-up order for each block:
+ *   1. Pre-fence: contiguous <!-- databook:key: value --> lines immediately
+ *      before the opening fence (canonical v1.2+ placement). A single blank
+ *      line between the annotations and the fence is tolerated (skipped).
+ *   2. Inline: <!-- databook:key: value --> lines as the first content lines
+ *      inside the fence (legacy v1.1 placement). Accepted for backwards
+ *      compatibility. Pre-fence values take priority when both are present.
+ *
  * @returns {Block[]}
  *
  * @typedef {Object} Block
- * @property {string|null} id          - databook:id comment value
- * @property {string} label            - fence language label
- * @property {string|null} role        - from frontmatter process.inputs
- * @property {string} content          - full block content (all lines joined)
- * @property {string[]} contentLines   - content lines
- * @property {number} line_count       - non-comment content lines
- * @property {number} comment_count    - <!-- databook:... --> lines
- * @property {boolean} display_only    - true if display-only
- * @property {Object} all_meta         - all databook:key comment values
+ * @property {string|null} id           - databook:id comment value
+ * @property {string} label             - fence language label
+ * @property {string|null} role         - from frontmatter process.inputs
+ * @property {string} content           - full block content (all lines joined)
+ * @property {string[]} contentLines    - content lines
+ * @property {number} line_count        - non-comment content lines
+ * @property {number} comment_count     - <!-- databook:... --> lines inside the fence
+ * @property {boolean} display_only     - true if display-only
+ * @property {Object} all_meta          - all databook:key comment values
+ * @property {Object} directives        - pre-fence key=value directives (mode, endpoint, ...)
+ * @property {string|null} mode         - shorthand for directives.mode
  */
 export function parseBlocks(bodyLines, frontmatter = null) {
   // Build role lookup from process.inputs
@@ -184,10 +235,59 @@ export function parseBlocks(bodyLines, frontmatter = null) {
     if (!fenceMatch) { i++; continue; }
 
     const label = fenceMatch[1];
+    const fenceLineIdx = i;
     i++;
 
+    // ── Pre-fence annotations (canonical v1.2+ placement) ────────────────────
+    // Walk backward from the line immediately before the fence opener.
+    // Collect contiguous <!-- databook:key: value --> lines with no blank lines
+    // between them and the fence. Stop at the first non-annotation line.
+    const preFenceMeta = {};
+    const directives = {};
+    let lb = fenceLineIdx - 1;
+
+    // Tolerate a single blank line between the annotation block and the
+    // fence. There's no ambiguity here — nothing else could plausibly own
+    // an annotation immediately preceding a fence — so skipping it costs
+    // nothing and closes a common formatting trap: an annotation silently
+    // orphaned by a stray blank line makes the block anonymous, which can
+    // cause it to collide with other blocks on push (see commands/push.js,
+    // resolveGraphIri / the destructive-PUT collision guard).
+    if (lb >= 0 && bodyLines[lb].trim() === '') lb--;
+
+    // The zone may interleave databook: annotations and directive lines in
+    // any order; both kinds keep the walk going. Anything else ends it.
+    // Walking backward means a later (lower) line wins on duplicate keys —
+    // for directives that is reversed below so that the *first* occurrence
+    // in reading order wins, matching how a forward-reading human sees it.
+    const directiveLines = [];
+    while (lb >= 0) {
+      const line = bodyLines[lb];
+      const m = RE_META_COMMENT.exec(line);
+      if (m) {
+        preFenceMeta[m[1]] = m[2].trim();
+        lb--;
+        continue;
+      }
+      const d = RE_DIRECTIVE.exec(line);
+      if (d) {
+        directiveLines.unshift(d[1]);
+        lb--;
+        continue;
+      }
+      break;
+    }
+    for (const spec of directiveLines) {
+      for (const token of spec.trim().split(/\s+/)) {
+        const eq = token.indexOf('=');
+        if (eq > 0) directives[token.slice(0, eq)] = token.slice(eq + 1);
+      }
+    }
+
+    // ── Inside-fence content + legacy inline annotations ──────────────────────
+    // Seed allMeta with pre-fence annotations (they take priority).
     const contentLines = [];
-    const allMeta = {};
+    const allMeta = { ...preFenceMeta };
     let commentCount = 0;
 
     while (i < bodyLines.length) {
@@ -196,7 +296,10 @@ export function parseBlocks(bodyLines, frontmatter = null) {
 
       const metaMatch = RE_META_COMMENT.exec(line);
       if (metaMatch) {
-        allMeta[metaMatch[1]] = metaMatch[2].trim();
+        // Legacy inline annotation: only apply if key not already set by pre-fence.
+        if (!(metaMatch[1] in preFenceMeta)) {
+          allMeta[metaMatch[1]] = metaMatch[2].trim();
+        }
         commentCount++;
       }
       contentLines.push(line);
@@ -208,15 +311,17 @@ export function parseBlocks(bodyLines, frontmatter = null) {
     const lineCount = contentLines.filter(l => !RE_META_COMMENT.test(l)).length;
 
     blocks.push({
-      id:           blockId,
+      id:             blockId,
       label,
-      role:         blockId ? (roleMap[blockId] ?? null) : null,
-      content:      contentLines.join('\n'),
+      role:           blockId ? (roleMap[blockId] ?? null) : null,
+      content:        contentLines.join('\n'),
       contentLines,
-      line_count:   lineCount,
-      comment_count: commentCount,
-      display_only: displayOnly,
-      all_meta:     allMeta,
+      line_count:     lineCount,
+      comment_count:  commentCount,
+      display_only:   displayOnly,
+      all_meta:       allMeta,
+      directives,
+      mode:           directives.mode ?? null,
     });
   }
 
@@ -257,8 +362,8 @@ export function resolveFragment(ref, basePath = null) {
 
 /**
  * Fetch a block by id from a DataBook file or from an already-parsed DataBook.
- * @param {string} ref        - Fragment reference string
- * @param {object|null} db    - Already-parsed DataBook (for same-document references)
+ * @param {string} ref       - Fragment reference string
+ * @param {object|null} db   - Already-parsed DataBook (for same-document references)
  * @returns {{ block: Block, db: object }}
  */
 export function fetchFragmentBlock(ref, db = null) {
@@ -283,4 +388,65 @@ export function blockPayload(block) {
   return block.contentLines
     .filter(l => !RE_META_COMMENT.test(l))
     .join('\n');
+}
+
+// ─── Adjacent annotation helpers ──────────────────────────────────────────────
+// Adjacent annotations are <!-- databook:key: value --> comment lines
+// that appear immediately before a fenced block to attach metadata to it.
+
+/**
+ * Parse a single <!-- databook:key: value --> comment line into a key-value pair.
+ * Returns { key: value } if the line is a databook annotation, or null otherwise.
+ * @param {string} line
+ * @returns {Object|null}
+ */
+export function parseAdjacentAnnotation(line) {
+  const m = RE_META_COMMENT.exec(line.trim());
+  if (!m) return null;
+  return { [m[1]]: m[2].trim() };
+}
+
+/**
+ * Parse a single pre-fence directive line (<!-- key=value ... -->) into a
+ * map of key-value pairs. Returns null if the line is not a directive.
+ * @param {string} line
+ * @returns {Object|null}
+ */
+export function parseDirectiveLine(line) {
+  const d = RE_DIRECTIVE.exec(line.trim());
+  if (!d) return null;
+  const out = {};
+  for (const token of d[1].trim().split(/\s+/)) {
+    const eq = token.indexOf('=');
+    if (eq > 0) out[token.slice(0, eq)] = token.slice(eq + 1);
+  }
+  return out;
+}
+
+/**
+ * Serialise a metadata object to a single adjacent annotation line.
+ * The id field is always primary; if no id, uses the first key present.
+ * Returns a <!-- databook:id: value --> string, or null if meta is empty.
+ * @param {Object} meta
+ * @returns {string|null}
+ */
+export function serializeAdjacentAnnotation(meta) {
+  if (!meta || Object.keys(meta).length === 0) return null;
+  const key = 'id' in meta ? 'id' : Object.keys(meta)[0];
+  const value = meta[key];
+  if (value == null) return null;
+  return `<!-- databook:${key}: ${value} -->`;
+}
+
+/**
+ * Serialise a metadata object to an array of internal annotation comment lines,
+ * one line per key. These are placed inside the fenced block, before the payload.
+ * @param {Object} meta
+ * @returns {string[]}
+ */
+export function serializeInternalAnnotations(meta) {
+  if (!meta) return [];
+  return Object.entries(meta)
+    .filter(([, v]) => v != null)
+    .map(([k, v]) => `<!-- databook:${k}: ${v} -->`);
 }
