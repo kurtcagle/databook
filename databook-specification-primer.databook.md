@@ -2,7 +2,7 @@
 id: https://w3id.org/holon/databook/primer
 title: "The DataBook Specification — A Primer for the HCG DataBook Working Group"
 type: databook
-version: 1.1.2
+version: 1.2.0
 created: 2026-09-07
 author:
   - name: Kurt Cagle
@@ -110,7 +110,14 @@ process:
     its parser on this document leaves 18 of 19 blocks anonymous, because a
     trailing directive line terminates the parser's backward walk. §1, §8,
     §16 and §17 now say so. v1.1.2 (same day): that parser defect is fixed
-    in the reference CLI; §8.7 records the fix.
+    in the reference CLI; §8.7 records the fix. v1.2.0 (same day): §4.5's
+    namespace re-home has been executed -- the bundled shapes module is
+    now 2.0.0-alpha.2 at https://w3id.org/databook/header#, and lib/reify.js
+    derives the namespace from the shapes file itself rather than
+    hard-coding it. The mode<->display_only reconciliation §16 asked for
+    is also done. §1, §4.5, §5, §8.7, §13.3, §16 and §17 updated; §5's
+    SHACL signatures are deliberately left as the archival 2.0.0-alpha.1
+    snapshot -- see the note at the head of §5.
   output_format: turtle
   output_media_type: text/turtle
 ---
@@ -135,7 +142,7 @@ from that. This document tags every rule with the layer it belongs to:
 |---|---|---|
 | **[v1.1]** | Canonical, published, ratified | `SPEC.md` in the `kurtcagle/databook` repository, dated 2026-04-25 |
 | **[v1.2]** | In daily use, but not yet written into `SPEC.md` | The reference CLI (`lib/parser.js`) parses the pre-fence header zone and, since 2026-09-07, directive lines; it does not yet *act* on `mode` (§8.7) |
-| **[v2.0]** | Proposed; offered to the WG for review | The header shapes module at `https://w3id.org/holon/databook#`, version 2.0.0-alpha.1 |
+| **[v2.0]** | Proposed; offered to the WG for review. As of 2026-09-07 the module is published at `https://w3id.org/databook/header#`, version 2.0.0-alpha.2 (§4.5) — WG ratification of the *content* is still pending; only the namespace decision in §16 item 2 has been executed | The header shapes module |
 | **[proposed]** | Proposed in this primer, 2026-09-07; in no published artefact | The profile model (§4) and everything it touches |
 
 Where a **[v1.2]** convention supersedes a **[v1.1]** one, both are shown
@@ -412,9 +419,8 @@ a DataBook, and the profile's IRI is that DataBook's `id`.
 |---|---|---|---|---|
 | `build:` | `https://w3id.org/databook/ns#` | DataBook WG (core) | The **pipeline vocabulary**: `build:Target`, `build:Stage`, `build:dependsOn`, and the rest of §11. | **[v1.1]** canonical |
 | `db:` | `https://w3id.org/databook/ns#` | — | Alias prefix for the same namespace, used in the shapes module's `sh:declare`. Pick one (§16 item 6). | alias |
-| `databook:` | **today:** `https://w3id.org/holon/databook#` | as published: personal repo; framed as a holon bridge | The **header projection**: every term in §5. | **[v2.0]** 2.0.0-alpha.1 |
-| `databook:` | **proposed:** `https://w3id.org/databook/header#` | DataBook WG (core) | The same header projection, re-homed as core. Prefix unchanged. | **[proposed]** |
-| *(none needed)* | `https://w3id.org/holon/databook#` | Holon CG (holon profile) | Re-purposed as the **holon profile's** IRI and module: the PROF descriptor, the L3 link (`rdfs:subClassOf holon:ContextLayer` or equivalent), any holon-required keys and shapes. | **[proposed]** |
+| `databook:` | `https://w3id.org/databook/header#` — moved 2026-09-07; was `https://w3id.org/holon/databook#` | `kurtcagle/databook` (core); formal WG repository placement still open, §16 item 2 | The **header projection**: every term in §5. | **[v2.0]** 2.0.0-alpha.2 |
+| *(none needed)* | `https://w3id.org/holon/databook#` | Holon CG (holon profile) | Vacated 2026-09-07 by the header-projection move above; available for the **holon profile's** IRI and module — the PROF descriptor, the L3 link, any holon-required keys and shapes. | Namespace free; profile itself **[proposed]**, not yet published (§16 item 15) |
 | `holon:` | `https://ontologist.io/ns/holon#` | Holon CG | The core HGA ontology. Never a DataBook namespace. | out of scope |
 | *(TBD)* | *(TBD)* | OKF's editors | An OKF profile, should one be defined: its own keys, labels, and shapes under its own namespace. | anticipated |
 
@@ -427,12 +433,24 @@ header projection is what *every* DataBook does, so it is not holon's to
 house at all. It belongs under `https://w3id.org/databook/`, beside the
 pipeline vocabulary, owned by the same working group.
 
-**What a re-home changes.** One line. The shapes module, this primer's
-payload, and every DataBook projection written so far share a single
-`@prefix databook: <https://w3id.org/holon/databook#> .` declaration; the
-prefix stays, the IRI behind it changes. The `owl:priorVersion` chain
-records the move. And the old IRI is not wasted: it becomes the natural home
-of the holon profile itself, which is what it was always describing.
+**What the re-home changed, in fact — executed 2026-09-07.** One line in
+the bundled shapes file: the `@prefix databook:` declaration, the
+`sh:declare` entry, and the ontology subject IRI, all the same string,
+now read `https://w3id.org/databook/header#`. The prefix `databook:` is
+unchanged everywhere it is used; only the IRI behind it differs. The
+module's own `owl:priorVersion` now lists both this IRI and the original
+ontologist.io draft it superseded on 2026-08-24. `lib/reify.js` derives
+the namespace from the shapes file's `sh:declare` table rather than a
+hard-coded constant, so this was a one-file content edit, not a code
+change; `commands/list.js`'s catalogue query follows the same source.
+`migrations/2026-09-07-header-namespace-rehome.sparql` covers any data
+already pushed under the old namespace — generated from the shapes
+index (44 predicates, 9 classes), verified against both rdflib and a
+real Apache Jena TDB2 store. This primer's own machine-readable content
+in §5 and §13, however, is deliberately **not** updated to the new
+namespace — see the note at the head of §5. The old IRI is not wasted:
+it is now free to become the holon profile's own IRI (§4.6), though that
+publication itself remains proposed, not done.
 
 ### 4.6 The holon profile
 
@@ -517,9 +535,16 @@ Three conventions run through every table:
   shapes module adds constraints SPEC.md does not state, and both where the
   two agree.
 
-> **Note:** Every signature below uses `https://w3id.org/holon/databook#`,
-> the namespace as published. Under the re-home proposed in §4.5 only the
-> `@prefix databook:` line changes; nothing else in this section does.
+> **Note, updated 2026-09-07:** the re-home described in §4.5 has been
+> executed — the module bundled with the CLI is now 2.0.0-alpha.2 at
+> `https://w3id.org/databook/header#`. Every signature below is
+> deliberately left as published on 2026-08-24, under the original
+> `https://w3id.org/holon/databook#`: an archival snapshot of
+> 2.0.0-alpha.1, not a live description of the current bundle. The
+> content is identical either way — same 46 property shapes, same
+> `sh:codeIdentifier` values, same cardinalities and constraints — only
+> the `@prefix databook:` target IRI differs between this section and
+> the shapes file the CLI now ships.
 
 ### 5.1 `databook:DataBookHeader` — the document itself
 
@@ -1718,11 +1743,22 @@ convenience field), with `parseDirectiveLine()` exported alongside
 negatives — a prose comment in the zone still ends the walk, and a
 directive-shaped line *inside* a fence is payload — and `npm test` now runs
 them. All sixteen pre-existing fixtures parse identically before and after.
-What remains for §16 item 1: the parser exposes `mode` but `push` and
-`process` do not yet act on it; they still decide display-only by label and
-by the CLI's own `databook:display-only: true` key, which appears in no spec
-text and is the CLI's ad hoc `mode=printed`. Reconciling those is the next
-slice.
+
+**Also fixed, 2026-09-07:** `mode` is now reconciled with the parser's
+pre-existing `display_only` field. `mode=printed`, `hidden`, or
+`reference` all set `display_only` true, matching what those values have
+always meant in the spec; `mode=executed` and `mode=rendered` do not — an
+executed block is the live payload, and a rendered block's status is
+governed by its fence label exactly as before. This was smaller than
+expected on inspection: `push` turned out not to consult `display_only`
+at all (it filters purely by fence label), and `process` runs an
+unrelated `processor-registry` DAG pipeline with no `mode` awareness. The
+one real consumer is `commands/create.js`'s "merge an existing DataBook"
+path, and it benefits automatically since it reads the same field. The
+CLI's ad hoc `databook:display-only: true` key is unchanged and still
+works standalone — this is additive to it, not a replacement.
+`test/mode-display-only.databook.md` and
+`test/parser-display-only.test.mjs` pin all five cases.
 
 ### 8.8 The headers in this document
 
@@ -2335,6 +2371,17 @@ against `ProcessStampShape`, whose `input` values are checked against
 the leaf and, as a `NodeConstraintComponent` result, at the link — which is
 what §13.4 shows.
 
+> **Note, 2026-09-07:** this result describes the 2.0.0-alpha.1 snapshot,
+> validated before the §4.5 re-home. The CLI now bundles 2.0.0-alpha.2 at
+> `https://w3id.org/databook/header#`; validating this same projection
+> against *that* file would fail on a namespace mismatch, because this
+> block's own `@prefix databook:` line (§13.2) was deliberately left
+> pointing at the original namespace, per the note at the head of §5. The
+> structural result — conforms, 66 triples, 9 subjects, every `sh:node`
+> link resolving — is unaffected; only the IRI the payload and the shapes
+> agree on changed, and this section pins them to what they were when the
+> primer first validated it.
+
 ### 13.4 Validation: a header that fails
 
 Four deliberate faults: an empty `title`, a `version` with a leading `v`, a
@@ -2532,19 +2579,20 @@ behalf. They are ordered by how much else depends on them.
    the text and the tooling agree, "conformant" is ambiguous in practice as
    well as on paper.
 
-2. **Adopt the header module as the v2.0 normative projection — and
-   re-home it.** Decide that the seven node shapes in §5 are normative and
-   that a v2.0 DataBook is one whose projected header validates against
-   them. Then decide the namespace: the module is published at
-   `https://w3id.org/holon/databook#`, and §4.5 argues it belongs at
-   `https://w3id.org/databook/header#` because it is core, not holon's.
-   This also decides where the shapes are published — the WG's own
-   repository, not a personal one — and requires that the w3id.org
-   redirects for `https://w3id.org/databook/ns#`, the new header namespace,
-   and `https://w3id.org/holon/databook#` (as the holon profile IRI) all be
-   registered and dereference.
+2. **Adopt the header module as the v2.0 normative projection.** ~~Decide
+   the namespace~~ — done, 2026-09-07: the module now publishes at
+   `https://w3id.org/databook/header#` (2.0.0-alpha.2), per the §4.5
+   argument that the header projection is core, not holon's. What remains:
+   decide that the seven node shapes in §5 are normative and that a v2.0
+   DataBook is one whose projected header validates against them; decide
+   where the shapes are published long-term — the WG's own repository,
+   not `kurtcagle/databook` — and register the w3id.org redirects for
+   `https://w3id.org/databook/ns#`, the header namespace, and
+   `https://w3id.org/holon/databook#` (as the holon profile IRI, once
+   published — §16 item 15).
 
-3. **Resolve the v1.1 / v2.0 cardinality differences** listed in §5:
+3. **Resolve the v1.1 / v2.0 cardinality differences** — unaffected by the
+   namespace re-home, still open — listed in §5:
    `process.timestamp` (recommended → required), `process.inputs` (empty
    list allowed → at least one), `process.inputs[].role` (recommended →
    required), `process.agent.role` (required → optional), and `process`
@@ -2644,7 +2692,8 @@ behalf. They are ordered by how much else depends on them.
 | 1.2 *(practice)* | from 2026-04-28 | Block header moved to the pre-fence comment zone — implemented in the CLI (v1.2.0 → 1.4.x). Block directives (`mode=`, `endpoint=`, `cache=`, `authority=`, `version=`, `result-iri=`, `expires=`) and the deprecation of `databook:executable` — in the LLM skill only; the CLI does not parse them (§8.7). Not yet in `SPEC.md`. |
 | 2.0.0-alpha.1 *(candidate)* | 2026-08-24 | Header module: `databook:` bridge namespace at `https://w3id.org/holon/databook#`; seven SHACL 1.2 node shapes and 46 property shapes with `sh:codeIdentifier`; PROV-O subclassing; `sh:declare` prefix table; `owl:priorVersion` link to the same-day `holon:`-namespaced draft it replaced; `version` pattern widened to full SemVer. Offered to the HCG DataBook WG. |
 | — | 2026-09-07 | This primer, v1.0.0. |
-| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. v1.1.1: corrected the claim that the CLI implements directives (§8.7). v1.1.2: the CLI parser fix landed; §8.7 records it. |
+| 2.0.0-alpha.2 | 2026-09-07 | Header module re-homed: `https://w3id.org/holon/databook#` → `https://w3id.org/databook/header#`. `owl:priorVersion` extended to record both prior IRIs. No property shape, cardinality, or `sh:codeIdentifier` changed. |
+| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. v1.1.1: corrected the claim that the CLI implements directives (§8.7). v1.1.2: the CLI parser fix landed; §8.7 records it. v1.2.0: the §4.5 namespace re-home executed and the §16 mode/display_only item done; §5's signatures left as the 2.0.0-alpha.1 archival snapshot. |
 
 ## 18. References
 
@@ -2673,5 +2722,5 @@ behalf. They are ordered by how much else depends on them.
 *This primer is a DataBook. Its primary data block is the RDF projection of
 the worked example in §13; its frontmatter describes that block; its process
 stamp cites the shapes module it documents as a `constraint` input. Version
-1.1.2, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
+1.2.0, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
 Working Group.*
