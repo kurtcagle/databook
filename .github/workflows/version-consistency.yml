@@ -1,0 +1,26 @@
+name: Version consistency
+
+# Runs the check from scripts/check-version-consistency.mjs on every push,
+# every pull request, and on demand. Fails the build (does not auto-fix)
+# if package.json's version, bin/databook.js's header-comment version, and
+# bin/databook.js's .version() call ever disagree, or if any of the three
+# falls below the 1.5.0 floor set on 2026-09-07. See that script's own
+# header comment for why.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check version consistency and floor
+        run: node scripts/check-version-consistency.mjs
