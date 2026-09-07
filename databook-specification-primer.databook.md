@@ -2,7 +2,7 @@
 id: https://w3id.org/holon/databook/primer
 title: "The DataBook Specification — A Primer for the HCG DataBook Working Group"
 type: databook
-version: 1.2.0
+version: 1.3.0
 created: 2026-09-07
 author:
   - name: Kurt Cagle
@@ -44,6 +44,14 @@ description: >
   the holon architecture becomes one profile among several, the header
   projection is proposed for re-homing from the holon namespace to a
   DataBook-owned one, and the extension points a profile may use are named.
+  Versions 1.1.1-1.2.0 record the namespace re-home and the mode/
+  display_only fix, both executed. Version 1.3.0 records that the profile
+  model itself is now partly implemented: lib/profiles.js resolves
+  profiles[], the parser accepts profile-declared comment-key prefixes,
+  databook:typeToken replaces the hand-maintained type-to-class table, a
+  databook:profile shape exists, and databook validate --header validates
+  a header projection against core plus declared profiles -- verified
+  against a real Jena SHACL engine.
 imports:
   - https://w3id.org/holon/databook#
 shapes:
@@ -117,7 +125,11 @@ process:
     hard-coding it. The mode<->display_only reconciliation §16 asked for
     is also done. §1, §4.5, §5, §8.7, §13.3, §16 and §17 updated; §5's
     SHACL signatures are deliberately left as the archival 2.0.0-alpha.1
-    snapshot -- see the note at the head of §5.
+    snapshot -- see the note at the head of §5. v1.3.0 (same day): §16
+    items 3, 4, 6, and 14 implemented, not only specified -- lib/profiles.js,
+    the generalised comment-key-prefix parser, databook:typeToken, and
+    databook:profile (module now 2.0.0-alpha.3). §4.2-§4.4, §5.1.2, §5.9
+    and §16 updated to describe what exists versus what remains proposed.
   output_format: turtle
   output_media_type: text/turtle
 ---
@@ -142,7 +154,7 @@ from that. This document tags every rule with the layer it belongs to:
 |---|---|---|
 | **[v1.1]** | Canonical, published, ratified | `SPEC.md` in the `kurtcagle/databook` repository, dated 2026-04-25 |
 | **[v1.2]** | In daily use, but not yet written into `SPEC.md` | The reference CLI (`lib/parser.js`) parses the pre-fence header zone and, since 2026-09-07, directive lines; it does not yet *act* on `mode` (§8.7) |
-| **[v2.0]** | Proposed; offered to the WG for review. As of 2026-09-07 the module is published at `https://w3id.org/databook/header#`, version 2.0.0-alpha.2 (§4.5) — WG ratification of the *content* is still pending; only the namespace decision in §16 item 2 has been executed | The header shapes module |
+| **[v2.0]** | Proposed; offered to the WG for review. As of 2026-09-07 the module is published at `https://w3id.org/databook/header#`, version 2.0.0-alpha.3 (§4.5) — WG ratification of the *content* is still pending; the namespace decision (§16 item 2) and the `profiles[]`/`typeToken` additions (§16 items 3, 6, 14) have been executed unilaterally by the maintainer, ahead of formal ratification | The header shapes module |
 | **[proposed]** | Proposed in this primer, 2026-09-07; in no published artefact | The profile model (§4) and everything it touches |
 
 Where a **[v1.2]** convention supersedes a **[v1.1]** one, both are shown
@@ -340,9 +352,13 @@ profiles:
   - https://w3id.org/databook/profiles/encryption
 ```
 
-Proposed projection: `databook:profile`, `sh:nodeKind sh:IRI`, `0..*`, on
-`DataBookHeader`. It has no shape in the 2.0.0-alpha.1 module (§5.9) and
-is item 14 in §16.
+**Implemented, 2026-09-07 (module 2.0.0-alpha.3):** `databook:profile`,
+`sh:nodeKind sh:IRI`, `0..*`, on `DataBookHeader` — added with no other
+code change, per the shapes-driven design's own claim (§5's intro). This
+closed §16 item 14. Resolution is `lib/profiles.js`: a bundled registry
+(`schema/profiles/index.json`) is tried first, a live HTTP fetch of the
+IRI is the fallback; an unresolvable profile is a warning, never a hard
+error, per §15.2. `databook validate --header` is the consumer (§4.4).
 
 ### 4.3 Extension points
 
@@ -351,10 +367,10 @@ Core states where a profile may add things. Nowhere else is extensible.
 | Extension point | Core provides | A profile may |
 |---|---|---|
 | Frontmatter keys | §5, reserved names | Add keys under its own namespace or declared by its descriptor; tighten cardinality or enumerations of core keys |
-| Document types (`type`) | The three §6.1 values | Add a type, as a class `rdfs:subClassOf databook:DataBookHeader` in its namespace (§16 item 8) |
+| Document types (`type`) | The three §6.1 values | Add a type, as a class `rdfs:subClassOf databook:DataBookHeader` with its own `databook:typeToken` (§16 item 8) — **implemented**: `lib/reify.js`'s type-to-class table is now read from the shapes file, no code change needed for a new token |
 | Block labels (§7) | The base vocabulary; unknown = display | Register labels; a processor without the profile still displays them |
 | Directive keys (§8.3) | `mode` and its five fixed values; the six other keys | Add directive *keys*; may not add `mode` values |
-| Comment-key prefixes (§8.2) | `databook:` | Declare a prefix of its own, e.g. `<!-- holon:layer: L2 -->` |
+| Comment-key prefixes (§8.2) | `databook:` | Declare a prefix of its own, e.g. `<!-- holon:layer: L2 -->` — **implemented**: `lib/parser.js` accepts any well-formed `prefix:key` annotation; `lib/profiles.js`'s `findUnregisteredPrefixes()` distinguishes merely-well-formed from actually-registered |
 | Shapes | The seven §5 node shapes | Add node shapes targeting the same classes; SHACL applies both |
 | Parser behaviour (§15) | The core contract | Add behaviours; may not remove or weaken core ones |
 
@@ -369,6 +385,20 @@ A profile is described with the W3C **Profiles Vocabulary (PROF)** — a
 schema, vocabulary, guidance, examples, validation. Because a profile
 descriptor is a small RDF graph with prose around it, it is naturally itself
 a DataBook, and the profile's IRI is that DataBook's `id`.
+
+**Implemented, 2026-09-07.** The block below was illustrative when
+written; two working (if minimal) versions of it now ship with the CLI —
+`schema/profiles/holon.profile.databook.md` and
+`schema/profiles/encryption.profile.databook.md` — each explicitly marked
+as a placeholder pending its real publication (§4.6, §16 item 15), each
+using `sh:declare` on its own PROF subject to register a comment-key
+prefix exactly as core's own shapes file registers `databook:`. A
+document declares one with `profiles: [<iri>]` (§4.2); `databook validate
+mydoc.databook.md --header` resolves it, unions any additional shapes
+with core, and validates the frontmatter projection against the result —
+verified against a real Jena SHACL engine, including the failure path
+(an unreachable profile domain warns and falls back to core, per §15.2)
+and the unregistered-prefix warning (§4.3's comment-key-prefix row).
 
 <!-- databook:id: prof-holon-profile-descriptor -->
 <!-- databook:label: PROF descriptor for core and for the holon profile (illustrative) -->
@@ -598,7 +628,7 @@ Its three permitted YAML values correspond to three classes, and
 | `publisher` | `databook:publisher` | `xsd:string` **or** IRI | 0..1 | `sh:or ( string, IRI )` | [v2.0] |
 | `imports[]` | `databook:imports` | IRI | 0..* | Other DataBooks whose prefix declarations and namespace context this one inherits (§9.3) | [v2.0] |
 | `shapes[]` | `databook:shapes` | IRI | 0..* | SHACL shapes the data is *expected* to conform to. Informational; not enforced at the DataBook level (§9.5) | [v1.1] [v2.0] |
-| `profiles[]` | `databook:profile` *(proposed)* | IRI | 0..* | Profiles the document claims conformance to (§4.2); omitted means core only | **[proposed]** — no shape yet |
+| `profiles[]` | `databook:profile` | IRI | 0..* | Profiles the document claims conformance to (§4.2); omitted means core only | **[v2.0]** — shaped, 2.0.0-alpha.3 |
 
 > **Note:** `tags`, `publisher`, and `imports` are **[v2.0]** additions with
 > no entry in SPEC.md v1.1's property table. SPEC.md does not forbid them —
@@ -1475,7 +1505,6 @@ module. Each is a §16 item.
 |---|---|---|
 | `process.outputs[]` | Optional; overrides `output` when both present | Plural form never modelled; needs either a repeatable `databook:output` or a decision to drop it |
 | `encryption` and children (`profile`, `key_id`, `scope`, `blocks[]`) | Reserved key; encryption profile | The profile is layered on core and was scoped out of the header module deliberately; the key must stay reserved |
-| `profiles[]` | **[proposed]** in this primer | Post-dates the shapes module; needs a `databook:profile` predicate and an IRI-valued, repeatable property shape (§4.2, §16 item 14) |
 
 ## 6. Controlled vocabularies
 
@@ -1785,7 +1814,7 @@ meaning. Choosing the right one is a modelling decision.
 | `shapes[]` (frontmatter) | document | *This document's data is expected to conform to those shapes.* Informational. | [v1.1] [v2.0] |
 | `build:dependsOn` (manifest block) | pipeline | *In this build, this artefact depends on that one.* Queryable with `build:dependsOn+`. | [v1.1] |
 | `owl:priorVersion` (in the data) | vocabulary | *This graph supersedes that one.* Used by the shapes module itself. | OWL; pattern adopted [v2.0] |
-| `profiles[]` (frontmatter) | document | *This document conforms to that profile.* Resolves, through the profile's PROF descriptor, to the shapes and conventions that apply (§4). | **[proposed]** |
+| `profiles[]` (frontmatter) | document | *This document conforms to that profile.* Resolves, through the profile's PROF descriptor, to the shapes and conventions that apply (§4). | **[v2.0]** — `lib/profiles.js` resolves it |
 
 ### 9.1 Fragment addressing
 
@@ -1867,6 +1896,8 @@ fragment IRI:
 | Reference examples | [`examples/`](https://github.com/kurtcagle/databook/tree/main/examples) | Eight reference DataBooks covering the major format features |
 | Core `build:` vocabulary and DataBook shapes | [`schema/build.ttl`](https://github.com/kurtcagle/databook/blob/main/schema/build.ttl), [`schema/databook.shacl.ttl`](https://github.com/kurtcagle/databook/blob/main/schema/databook.shacl.ttl) | The **[v1.1]** pipeline vocabulary and its own shapes; distinct from the **[v2.0]** header module |
 | W3C Holon Community Group | [`w3c-cg/holon`](https://github.com/w3c-cg/holon) | The WG's home; the intended destination of a ratified v2.0 specification |
+| Bundled profile stubs | [`schema/profiles/holon.profile.databook.md`](https://github.com/kurtcagle/databook/blob/main/schema/profiles/holon.profile.databook.md), [`schema/profiles/encryption.profile.databook.md`](https://github.com/kurtcagle/databook/blob/main/schema/profiles/encryption.profile.databook.md) | Working examples of §4.4's PROF descriptor pattern; each explicitly marked a placeholder pending its real publication (§4.6, §16 item 15) |
+| Profile resolution | [`lib/profiles.js`](https://github.com/kurtcagle/databook/blob/main/lib/profiles.js) | Implements §4.2's `profiles[]` resolution: bundled registry first, network fetch fallback, never a hard error for an unresolvable profile (§15.2) |
 
 ## 10. Parameterised queries **[v1.1]**
 
@@ -2621,15 +2652,19 @@ behalf. They are ordered by how much else depends on them.
    extend the scanner to handle fence nesting per CommonMark and say so.
    (a) is simpler and matches current behaviour.
 
-8. **`type` → `rdf:type`, or a `databook:documentType` literal?** The current
-   design maps the YAML `type` to `rdf:type` with three classes. It is clean
-   and queryable, and the profile model (§4.3) argues for keeping it: a
-   profile-defined document type is simply a class `rdfs:subClassOf
-   databook:DataBookHeader` in the profile's namespace, which an enumeration
-   of strings could not express without core being edited. The residual cost
-   is that `DataBookHeaderShape-type`'s `sh:in` is a list of classes rather
-   than strings, which may surprise generic mappers. Recommendation: confirm
-   `rdf:type`, and state in the spec that profiles extend it by subclassing.
+8. **`type` → `rdf:type`, or a `databook:documentType` literal?** ~~Decide
+   the design~~ — done, 2026-09-07: `rdf:type` confirmed and made
+   concretely extensible via a new class-level `databook:typeToken`
+   annotation (module 2.0.0-alpha.3) — `lib/reify.js`'s YAML-token-to-class
+   table is now read from the shapes file itself, so a profile-defined
+   type needs no code change, only a class declaring its own token. What
+   remains: `DataBookHeaderShape-type`'s `sh:in` is still a fixed
+   three-class enumeration and is *not* widened by a typeToken alone — a
+   profile-defined type is legal RDF that this shape does not yet accept.
+   The WG still needs a shape-composition convention (e.g. a profile shape
+   with its own `sh:in`, or dropping `sh:in` from core in favour of a
+   looser per-token check) before a profile-defined type can pass
+   `databook validate --header` cleanly.
 
 9. **Align `sh:message` with `sh:pattern` on `version`.** The pattern accepts
    full SemVer 2.0.0; the message still says `MAJOR.MINOR.PATCH`. Trivial,
@@ -2660,21 +2695,34 @@ behalf. They are ordered by how much else depends on them.
     error table needs no change, since it never listed a missing data block
     as an error.
 
-14. **Ratify the profile model (§4).** The definition, the additive-only
-    conformance rule, the `profiles[]` key with a `databook:profile` shape,
-    the named extension points, and the PROF descriptor convention. This is
-    the change that turns the DataBook format from one architecture's
-    artefact into a neutral core that others can adopt without forking.
+14. **Ratify the profile model (§4).** ~~Specify it~~ — done and,
+    2026-09-07, working: the definition, the additive-only conformance
+    rule, the `profiles[]` key with a `databook:profile` shape (module
+    2.0.0-alpha.3), the named extension points, and `lib/profiles.js`
+    resolving a real PROF descriptor (bundled + network fallback) all
+    exist and are tested against a real Jena SHACL engine via `databook
+    validate --header`. What remains is exactly the WG's ratification
+    itself — everything above was executed unilaterally by the maintainer
+    ahead of it, which is a governance gap even where the design turns out
+    right, and this is the change that turns the DataBook format from one
+    architecture's artefact into a neutral core that others can adopt
+    without forking.
 
 15. **Register the holon profile.** Move the holonic reading, the HGA mode
     patterns, and the authority semantics (§4.6) out of core prose and into
     a holon profile DataBook at `https://w3id.org/holon/databook#`, owned by
     the Holon CG, with its PROF descriptor and its one-line L3 shape.
 
-16. **Generalise comment-key prefixes.** §8.2 and §8.5 now allow a profile
-    to register a comment-key prefix. The reference scanner recognises only
-    `databook:`; it needs to accept declared prefixes and to key metadata by
-    the full prefixed name.
+16. **Generalise comment-key prefixes.** ~~Generalise the scanner~~ — done,
+    2026-09-07: `lib/parser.js`'s `RE_META_COMMENT` accepts any well-formed
+    `prefix:key` annotation, storing core keys bare and others under the
+    full `prefix:key` string, exactly as §8.2 and §8.5 describe. What
+    remains: this is a syntactic acceptance only — `lib/profiles.js`'s
+    `findUnregisteredPrefixes()` is the layer that checks whether a prefix
+    is actually *registered* by a declared profile, and it lives in the
+    `validate --header` path, not in the parser itself; a caller using
+    `lib/parser.js` directly (e.g. `head`, `create`) sees every
+    syntactically well-formed prefix as equally valid.
 
 17. **Invite an OKF profile.** Open Knowledge Format is the most likely
     second profile. Its editors should be asked what an OKF DataBook needs
@@ -2693,7 +2741,8 @@ behalf. They are ordered by how much else depends on them.
 | 2.0.0-alpha.1 *(candidate)* | 2026-08-24 | Header module: `databook:` bridge namespace at `https://w3id.org/holon/databook#`; seven SHACL 1.2 node shapes and 46 property shapes with `sh:codeIdentifier`; PROV-O subclassing; `sh:declare` prefix table; `owl:priorVersion` link to the same-day `holon:`-namespaced draft it replaced; `version` pattern widened to full SemVer. Offered to the HCG DataBook WG. |
 | — | 2026-09-07 | This primer, v1.0.0. |
 | 2.0.0-alpha.2 | 2026-09-07 | Header module re-homed: `https://w3id.org/holon/databook#` → `https://w3id.org/databook/header#`. `owl:priorVersion` extended to record both prior IRIs. No property shape, cardinality, or `sh:codeIdentifier` changed. |
-| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. v1.1.1: corrected the claim that the CLI implements directives (§8.7). v1.1.2: the CLI parser fix landed; §8.7 records it. v1.2.0: the §4.5 namespace re-home executed and the §16 mode/display_only item done; §5's signatures left as the 2.0.0-alpha.1 archival snapshot. |
+| 2.0.0-alpha.3 | 2026-09-07 | `databook:profile` (`sh:IRI`, `profiles[]`) and `databook:typeToken` (class-level annotation, replacing `lib/reify.js`'s hand-maintained type table) added. No `sh:in` widened; §16 item 8's residual gap noted explicitly. |
+| — | 2026-09-07 | This primer, v1.1.0: the profile model (§4), with the holon architecture recast as one profile and the header namespace proposed for re-homing. v1.1.1: corrected the claim that the CLI implements directives (§8.7). v1.1.2: the CLI parser fix landed; §8.7 records it. v1.2.0: the §4.5 namespace re-home executed and the §16 mode/display_only item done; §5's signatures left as the 2.0.0-alpha.1 archival snapshot. v1.3.0: §16 items 8 (typeToken), 14 (profile model), and 16 (comment-key prefixes) updated from specified to implemented and tested against a real Jena SHACL engine; item 3 (cardinality differences) is untouched by this batch and remains open. |
 
 ## 18. References
 
@@ -2722,5 +2771,5 @@ behalf. They are ordered by how much else depends on them.
 *This primer is a DataBook. Its primary data block is the RDF projection of
 the worked example in §13; its frontmatter describes that block; its process
 stamp cites the shapes module it documents as a `constraint` input. Version
-1.2.0, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
+1.3.0, 2026-09-07. Proposed amendments should be raised with the HCG DataBook
 Working Group.*
