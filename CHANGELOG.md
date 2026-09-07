@@ -19,13 +19,11 @@ comment and its `.version()` call) had drifted out of sync with each
 other for several releases before this one (`package.json` sat at 1.2.0
 while `bin/databook.js` reported 1.4.2); this release reconciles all
 three to 1.5.0. `scripts/check-version-consistency.mjs` checks the three
-declarations agree and enforces this 1.5.0 floor -- run it locally before
-any future release (`node scripts/check-version-consistency.mjs`). A
-GitHub Actions workflow to run it automatically on every push is written
-(`.github/workflows/version-consistency.yml`) but not yet in this
-repository -- pushing a workflow file needs a PAT with the `workflow`
-scope, which the one in use here doesn't have; see the next entry once
-that's resolved.
+declarations agree and enforces this 1.5.0 floor; `.github/workflows/
+version-consistency.yml` now runs it automatically on every push, every
+pull request, and on demand -- it checks and fails only, never
+auto-commits a fix, so a disagreement is always a visible, human-reviewed
+decision about which value is right.
 
 ### CLI
 
