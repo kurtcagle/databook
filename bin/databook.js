@@ -301,9 +301,12 @@ program
 // ─── databook validate ────────────────────────────────────────────────────────────
 program
   .command('validate <source>')
-  .description('Run SHACL validation against RDF blocks in a DataBook')
-  .option('-b, --block-id <id>',    'Validate only this block (default: all RDF blocks)')
-  .requiredOption('--shapes <ref>', 'SHACL shapes: file#block-id or plain .ttl file')
+  .description('Run SHACL validation against RDF blocks in a DataBook, or its frontmatter header (--header)')
+  .option('-b, --block-id <id>',    'Validate only this block (default: all RDF blocks; not used with --header)')
+  .option('--shapes <ref>',         'SHACL shapes: file#block-id or plain .ttl file (required unless --header)')
+  .option('--header',               'Validate the frontmatter header projection (DataBook v2.0) against the bundled shapes plus any declared profiles[], instead of a domain data block')
+  .option('--no-profiles',          'With --header: skip resolving profiles[]; validate against core header shapes only')
+  .option('--offline-profiles',     'With --header: resolve profiles[] from the bundled registry only, no network fetch')
   .option('-s, --server <n>',       'Named server (for future remote SHACL endpoint)')
   .option('-e, --endpoint <url>',   'Remote SHACL validation endpoint (not yet implemented)')
   .option('--wrap',                 'Wrap report in a DataBook (default: on)', true)
@@ -316,7 +319,7 @@ program
   .option('-v, --verbose',          'Log engine resolution and block details')
   .option('-q, --quiet',            'Suppress CONFORMS/VIOLATION summary line')
   .option('--encoding <enc>',       'Output encoding: utf8 (default), utf8bom, utf16')
-  .addHelpText('after', `\nEngine resolution: (1) JENA_HOME/bin/shacl or 'shacl' on PATH, (2) 'pyshacl' on PATH\n\nExamples:\n  databook validate data.databook.md --shapes shapes.databook.md#person-shapes\n  databook validate data.databook.md --block-id primary-graph --shapes shapes.ttl\n  databook validate data.databook.md --shapes shapes.ttl --fail-on-violation --no-wrap\n  databook validate data.databook.md --shapes shapes.databook.md#org-shapes -o report.databook.md\n  `)
+  .addHelpText('after', `\nEngine resolution: (1) JENA_HOME/bin/shacl or 'shacl' on PATH, (2) 'pyshacl' on PATH\n\nHeader mode (--header) validates the DataBook's OWN frontmatter, projected via\nlib/reify.js, against the bundled databook: v2.0 header shapes plus any profiles\ndeclared in frontmatter profiles[] (DataBook Specification Primer S4). An\nunresolvable profile is a warning, not an error -- validation proceeds against\ncore. A comment-key prefix (e.g. holon:) that no declared profile registers is\nalso only a warning.\n\nExamples:\n  databook validate data.databook.md --shapes shapes.databook.md#person-shapes\n  databook validate data.databook.md --block-id primary-graph --shapes shapes.ttl\n  databook validate data.databook.md --shapes shapes.ttl --fail-on-violation --no-wrap\n  databook validate data.databook.md --shapes shapes.databook.md#org-shapes -o report.databook.md\n  databook validate mydoc.databook.md --header\n  databook validate mydoc.databook.md --header --no-profiles\n  databook validate mydoc.databook.md --header --offline-profiles --fail-on-violation\n  `)
   .action(async (source, opts) => { await runValidate(source, opts); });
 
 // ─── databook describe ────────────────────────────────────────────────────────────

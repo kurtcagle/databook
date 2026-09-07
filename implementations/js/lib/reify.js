@@ -13,10 +13,14 @@
  * so a new frontmatter field only needs a new property shape in the shapes
  * file, not a matching code change here.
  *
- * The one piece that isn't purely shapes-derived: the `type` field's YAML
- * string tokens ("databook", "transformer-library", "processor-registry")
- * aren't themselves encoded in the shapes graph's sh:in class list, so a
- * small fixed lookup table selects the class. Everything else is generic.
+ * The `type` field's YAML token -> class mapping is also shapes-derived,
+ * via `databook:typeToken` class-level annotations (2.0.0-alpha.3): a
+ * profile that defines its own document type declares a class
+ * `rdfs:subClassOf databook:DataBookHeader` with its own
+ * `databook:typeToken`, and needs no code change here to be recognised.
+ * `sh:in` on DataBookHeaderShape-type is a separate, still-fixed
+ * enumeration this does not widen -- see the property's own rdfs:comment
+ * in the shapes file, and the DataBook Specification Primer S16 item 8.
  */
 
 import fs from 'fs';
@@ -33,15 +37,6 @@ const rdf = p => `${RDF}${p}`;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHAPES_PATH = path.join(__dirname, '..', 'schema', 'holon-databook-header.shacl.ttl');
-
-// The YAML `type` string -> class local name. Not derivable from the shapes
-// graph itself (sh:in lists valid classes, not the YAML tokens that select
-// among them), so this one small table is intentionally hand-maintained.
-const TYPE_CLASS = {
-  'databook':            'DataBookHeader',
-  'transformer-library':  'TransformerLibraryHeader',
-  'processor-registry':   'ProcessorRegistryHeader',
-};
 
 let _shapesIndex = null;
 
@@ -132,7 +127,20 @@ export function loadShapesIndex() {
     if (prefixTerm && nsTerm) prefixMap[prefixTerm.value] = nsTerm.value;
   }
 
-  _shapesIndex = { propertyShapes, targetClassByShape, prefixMap };
+  // `type` token -> class IRI (2.0.0-alpha.3): class-level
+  // `databook:typeToken` annotations, read with the same derived namespace
+  // as everything else in this function -- a profile-defined document
+  // type is recognised the moment its class declares a typeToken, with no
+  // change to this file.
+  const typeTokenToClass = {};
+  const dbNs = prefixMap['databook'];
+  if (dbNs) {
+    for (const q of store.getQuads(null, `${dbNs}typeToken`, null, null)) {
+      typeTokenToClass[q.object.value] = q.subject.value;
+    }
+  }
+
+  _shapesIndex = { propertyShapes, targetClassByShape, prefixMap, typeTokenToClass };
   return _shapesIndex;
 }
 
@@ -145,6 +153,17 @@ export function loadShapesIndex() {
  * code change here or in any command that calls this function.
  * @returns {string}
  */
+/**
+ * The bundled shapes file's raw Turtle content, for callers that need to
+ * union it with other shapes graphs (e.g. `databook validate --header`,
+ * which validates a frontmatter projection against core plus any declared
+ * profiles' shapes) rather than only its parsed sh:codeIdentifier index.
+ * @returns {string}
+ */
+export function getBundledShapesText() {
+  return fs.readFileSync(SHAPES_PATH, 'utf8');
+}
+
 export function getDatabookNamespace() {
   const { prefixMap } = loadShapesIndex();
   const ns = prefixMap['databook'];
@@ -305,9 +324,9 @@ export function frontmatterToTurtle(frontmatter, filePath = null) {
   const DATABOOK_NS = getDatabookNamespace();
 
   const subjectIri = frontmatter.id ?? `file://${filePath ?? 'unknown'}`;
-  const cls = TYPE_CLASS[frontmatter.type] ?? 'DataBookHeader';
+  const classIri = shapesIndex.typeTokenToClass[frontmatter.type] ?? `${DATABOOK_NS}DataBookHeader`;
 
-  const triples = [`<${subjectIri}> a databook:${cls} .`];
+  const triples = [`<${subjectIri}> a <${classIri}> .`];
   walk(subjectIri, frontmatter, '', shapesIndex, triples);
 
   const lines = [

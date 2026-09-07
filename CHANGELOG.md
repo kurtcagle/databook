@@ -84,6 +84,74 @@ All notable changes to the DataBook format specification and reference CLI are d
   `implementations/js/test/`. No regressions across the 16 pre-existing
   fixtures.
 
+### Profile model: `profiles[]`, prefixed comment keys, `typeToken` (S4, S16 items 3/4/6/14)
+
+- **Added:** `lib/profiles.js` resolves a frontmatter `profiles[]` IRI to
+  its registered comment-key prefixes and any additional SHACL shapes it
+  declares. Bundled registry (`schema/profiles/index.json`) is tried
+  first — fully offline, deterministic in CI — with a live HTTP fetch as
+  fallback unless `offline` is set. An unresolvable profile is never a
+  hard error: per SPEC §15.2's own contract, it is a warning and
+  validation proceeds against core alone. Two bundled stub profiles ship
+  as fixtures: `holon.profile.databook.md` (registers the `holon:`
+  prefix; no shapes yet — an explicit placeholder for the real
+  publication, primer §16 item 15) and `encryption.profile.databook.md`
+  (no prefix, no shapes — the "profile with nothing to add but a
+  documented convention" case, since SPEC §13's encryption profile is
+  procedural, not SHACL-based).
+- **Added:** `databook validate --header` — validates a DataBook's own
+  frontmatter (projected via `frontmatterToTurtle()`) against the
+  bundled header shapes plus any profiles declared in `profiles[]`,
+  instead of a domain data block against `--shapes`. `--no-profiles`
+  skips profile resolution; `--offline-profiles` restricts it to the
+  bundled registry. Warns (does not fail) on an unresolvable profile or a
+  comment-key prefix no declared profile registers. Verified end to end
+  against a real Jena SHACL engine: a valid header conforms; a header
+  with five deliberate faults (empty title, non-semver version, missing
+  process, no inputs, invalid `transformer_type`) reports all five and
+  exits 1 under `--fail-on-violation`; an unreachable profile domain
+  warns and degrades to core-only validation without crashing.
+- **Added:** `databook:profile` — an `sh:IRI` property shape for
+  `profiles[]` (`sh:codeIdentifier "profiles[]"`), demonstrating that the
+  shapes-driven design costs nothing: no code change to `lib/reify.js`
+  was needed to project it. Module bumped to 2.0.0-alpha.3.
+- **Fixed:** `lib/parser.js`'s `RE_META_COMMENT` now accepts any
+  well-formed `prefix:key: value` comment, not only `databook:`. Core
+  keys are stored bare (`id`, unchanged); other prefixes are stored under
+  the full `prefix:key` string, so a declared profile's `holon:layer` or
+  an undeclared `okf:something` are both captured (and distinguishable)
+  rather than silently discarded as a prose comment — which, before this
+  fix, also aborted the backward walk before it reached `databook:id` on
+  the same block. `lib/profiles.js`'s `findUnregisteredPrefixes()` is the
+  higher-level check for "declared by a profile" vs. merely well-formed.
+- **Fixed:** `lib/reify.js`'s hand-maintained `TYPE_CLASS` table is gone.
+  A new `databook:typeToken` class-level SHACL annotation
+  (`databook:DataBookHeader databook:typeToken "databook"`, etc.) lets
+  `type:` → class resolution be read from the bundled shapes file, the
+  same way every other frontmatter field already was. A profile that
+  defines its own document type as a class `rdfs:subClassOf
+  databook:DataBookHeader` with its own `typeToken` needs no code change
+  to be recognised by `frontmatterToTurtle()` — verified by injecting a
+  synthetic class in an unrelated namespace and confirming the same
+  scanning logic picks it up. Does **not** widen
+  `DataBookHeaderShape-type`'s `sh:in` enumeration, which remains a
+  separate, fixed list (primer §16 item 8) — the property shape's own
+  `rdfs:comment` says so explicitly.
+- **Added:** `getBundledShapesText()` in `lib/reify.js`, for callers (like
+  `validate --header`) that need the raw shapes Turtle to union with
+  profile shapes, alongside the existing parsed `sh:codeIdentifier` index.
+- **Added:** `test/prefixed-keys.databook.md` +
+  `test/parser-prefixed-keys.test.mjs` (item 4); `test/profiles.test.mjs`
+  (items 3 and 6, fully offline). 29 tests total, 28 passing (1 skipped
+  outside `PRIMER=` mode); zero regressions across all pre-existing
+  fixtures.
+- **Scope note:** `lib/profiles.js` and `schema/profiles/` are root-only.
+  `implementations/js/commands/` never included `list.js` or
+  `validate.js` — it is a smaller, older snapshot missing nine commands
+  entirely — so there is nothing there to consume the new module, and
+  mirroring it would be inert. `lib/parser.js`, `lib/reify.js`, and the
+  shapes file remain synced as always.
+
 ### Not yet done (see the primer, §16 item 1)
 
 - `mode=printed|hidden|reference` is parsed but not yet applied: `push` and

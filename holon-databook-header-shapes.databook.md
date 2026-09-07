@@ -2,7 +2,7 @@
 id: https://w3id.org/databook/header#
 title: "Holon DataBook Header Shapes (SHACL 1.2) — DataBook v2.0 Draft Module"
 type: databook
-version: 2.0.0-alpha.2
+version: 2.0.0-alpha.3
 created: 2026-08-24
 description: >
   SHACL 1.2 shapes mapping the DataBook YAML frontmatter (spec:
@@ -78,6 +78,16 @@ process:
     name: Kurt Cagle
     role: orchestrator
   note: >
+    2026-09-07 (v2.0.0-alpha.3): added databook:profile (an sh:IRI property
+    shape for profiles[], per the DataBook Specification Primer S16 item
+    14) and databook:typeToken (a class-level annotation replacing the
+    hand-maintained YAML-type-token-to-class table in lib/reify.js with a
+    shapes-derived one, per S16 item 8/item 6 of the CLI-impact review --
+    a profile-defined document type is now recognised the moment its class
+    declares a typeToken, no code change required). Neither widens
+    DataBookHeaderShape-type's sh:in enumeration, which remains a
+    separate, fixed list; see that property shape's own comment.
+
     2026-09-07 (v2.0.0-alpha.2): re-homed from https://w3id.org/holon/databook#
     to this namespace. The 2026-08-24 note below explains why the header
     projection was already kept out of the core HGA ontology namespace; the
@@ -304,7 +314,7 @@ predicate value.
     a owl:Ontology , sh:ShapesGraph ;
     rdfs:label "Holon DataBook Header Shapes"@en ;
     rdfs:comment "SHACL 1.2 shapes mapping DataBook YAML frontmatter onto a dedicated databook: bridge namespace, for RDF 1.2 conversion into the HGA context layer (L3). Distinct from the core Holon Graph Architecture ontology namespace."@en ;
-    owl:versionInfo "2.0.0-alpha.2" ;
+    owl:versionInfo "2.0.0-alpha.3" ;
     owl:priorVersion <https://ontologist.io/ns/holon/shapes/databook-header-v1> ,
                       <https://w3id.org/holon/databook#> ;
     owl:imports <http://www.w3.org/ns/shacl#> ;
@@ -327,17 +337,20 @@ predicate value.
 databook:DataBookHeader a owl:Class ;
     rdfs:label "DataBook Header"@en ;
     rdfs:comment "RDF projection of a DataBook's YAML frontmatter, addressed by the DataBook's own `id` IRI."@en ;
-    rdfs:subClassOf prov:Entity .
+    rdfs:subClassOf prov:Entity ;
+    databook:typeToken "databook" .
 
 databook:TransformerLibraryHeader a owl:Class ;
     rdfs:label "Transformer Library Header"@en ;
     rdfs:comment "Header of a DataBook whose YAML `type` is transformer-library."@en ;
-    rdfs:subClassOf databook:DataBookHeader .
+    rdfs:subClassOf databook:DataBookHeader ;
+    databook:typeToken "transformer-library" .
 
 databook:ProcessorRegistryHeader a owl:Class ;
     rdfs:label "Processor Registry Header"@en ;
     rdfs:comment "Header of a DataBook whose YAML `type` is processor-registry."@en ;
-    rdfs:subClassOf databook:DataBookHeader .
+    rdfs:subClassOf databook:DataBookHeader ;
+    databook:typeToken "processor-registry" .
 
 databook:AuthorStamp a owl:Class ;
     rdfs:label "Author Stamp"@en ;
@@ -425,6 +438,15 @@ databook:imports a owl:ObjectProperty ;
 databook:shapes a owl:ObjectProperty ;
     rdfs:domain databook:DataBookHeader ;
     rdfs:comment "IRI of a SHACL shape this DataBook's data is expected to conform to. Informational only; not enforced at the DataBook level."@en .
+
+databook:profile a owl:ObjectProperty ;
+    rdfs:domain databook:DataBookHeader ;
+    rdfs:comment "IRI of a DataBook profile (S4 of the DataBook Specification Primer) this document claims conformance to. A profile's own PROF descriptor (prof:isProfileOf this namespace) resolves the frontmatter keys, block labels, directive keys, comment-key prefixes, document types, and additional SHACL shapes it registers. Conformance to a profile implies conformance to core; a profile may tighten or extend, never relax or reinterpret."@en .
+
+databook:typeToken a owl:AnnotationProperty ;
+    rdfs:domain owl:Class ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The YAML `type` string that selects this class as rdf:type of a DataBookHeader. Class-level, not a per-instance property: `databook:DataBookHeader databook:typeToken \"databook\" .` is what lets a generic mapper resolve `type:` without a hand-maintained token-to-class table -- a profile that defines its own document type does so by declaring a new class, `rdfs:subClassOf databook:DataBookHeader`, with its own `databook:typeToken`, and needs no code change to be recognised. Does not, by itself, widen DataBookHeaderShape-type's sh:in constraint (S16 item 8 of the primer) -- that enumeration is a separate, still-fixed list; a profile-defined type is legal RDF but is not yet accepted by core's own validation of the `type` property without a further shape-composition mechanism this module does not yet define."@en .
 
 databook:graph a owl:ObjectProperty ;
     rdfs:domain databook:DataBookHeader ; rdfs:range databook:GraphMetadata ;
@@ -596,6 +618,7 @@ databook:DataBookHeaderShape
         databook:DataBookHeaderShape-publisher ,
         databook:DataBookHeaderShape-imports ,
         databook:DataBookHeaderShape-shapes ,
+        databook:DataBookHeaderShape-profile ,
         databook:DataBookHeaderShape-graph ,
         databook:DataBookHeaderShape-process .
 
@@ -735,6 +758,16 @@ databook:DataBookHeaderShape-shapes
     sh:group databook:DescriptivePropertyGroup ;
     sh:order 130 ;
     sh:message "shapes is informational: IRIs of SHACL shapes this DataBook's data is expected to conform to."@en .
+
+databook:DataBookHeaderShape-profile
+    a sh:PropertyShape ;
+    sh:path databook:profile ;
+    sh:name "profiles"@en ;
+    sh:codeIdentifier "profiles[]" ;
+    sh:nodeKind sh:IRI ;
+    sh:group databook:DescriptivePropertyGroup ;
+    sh:order 135 ;
+    sh:message "profiles is informational at the shape level: IRIs of DataBook profiles this document claims conformance to. A generic mapper needs no code change to project it -- lib/reify.js resolves this property shape by sh:codeIdentifier exactly like every other frontmatter key."@en .
 
 databook:DataBookHeaderShape-graph
     a sh:PropertyShape ;
@@ -1122,7 +1155,6 @@ databook:OutputSpecShape-file
 # =============================================================================
 # End of holon-databook-header-shapes.ttl
 # =============================================================================
-
 ```
 
 ## Validation Notes

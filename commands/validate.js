@@ -22,11 +22,16 @@ import { loadDataBookFile, blockPayload, PUSHABLE_LABELS }       from '../lib/pa
 import { resolveAuth }                                           from '../lib/auth.js';
 import { resolveServer, LOCALHOST_FUSEKI, datasetToEndpoints }   from '../lib/serverConfig.js';
 import { sparqlQuery, checkResponse }                             from '../lib/gsp.js';
+import { frontmatterToTurtle, getBundledShapesText, getDatabookNamespace } from '../lib/reify.js';
+import { resolveProfiles, findUnregisteredPrefixes }              from '../lib/profiles.js';
 
 export async function runValidate(source, opts) {
   const {
     blockId,
     shapes:   shapesRef,
+    header  = false,      // validate the frontmatter header projection, not a data block
+    profiles: useProfiles = true,  // --no-profiles disables profiles[] resolution in --header mode
+    offlineProfiles = false,       // --offline-profiles: skip network fetch, bundled registry only
     server:   serverName,
     endpoint: endpointOpt,
     wrap    = true,
@@ -44,58 +49,101 @@ export async function runValidate(source, opts) {
   try { enc = resolveEncoding(encOpt); } catch (e) { die(e.message); }
 
   if (!source) die('a source DataBook file is required', 2);
+  if (!header && !shapesRef) die('--shapes <ref> is required (or use --header to validate the frontmatter projection)', 2);
+  if (header && shapesRef) die('--header validates against the bundled header shapes plus any declared profiles; --shapes is not used with it', 2);
+  if (header && blockId) die('--header validates the frontmatter, not a data block; --block-id is not used with it', 2);
 
   // ── Load source DataBook ──────────────────────────────────────────────────
   let db;
   try { db = loadDataBookFile(source); } catch (e) { die(e.message, 2); }
   const fm = db.frontmatter;
 
-  // ── Select data blocks to validate ───────────────────────────────────────
-  let dataBlocks;
-  if (blockId) {
-    const block = db.blocks.find(b => b.id === blockId);
-    if (!block) die(`no block with id '${blockId}'`, 2);
-    dataBlocks = [block];
+  let dataText, shapesText, effectiveShapesRef, profileWarnings = [];
+
+  if (header) {
+    // ── --header mode: validate the frontmatter projection ──────────────────
+    // (DataBook Specification Primer S4/S13; S16 items 3 and 14.)
+    dataText = frontmatterToTurtle(fm, source);
+    const shapesParts = [getBundledShapesText()];
+
+    const declaredProfiles = Array.isArray(fm.profiles) ? fm.profiles : [];
+    let resolvedProfiles = [];
+    if (declaredProfiles.length > 0 && useProfiles) {
+      resolvedProfiles = await resolveProfiles(declaredProfiles, { offline: offlineProfiles });
+      for (const p of resolvedProfiles) {
+        if (p.ok) {
+          if (p.shapesText) shapesParts.push(p.shapesText);
+          if (verbose) log(`[validate] profile ${p.iri} resolved (${p.source}): "${p.title}"${p.shapesText ? ', additional shapes included' : ', no additional shapes'}`);
+        } else {
+          // Per S15.2: an unrecognised profile is a warning, not an error --
+          // conformance to any profile implies conformance to core, so
+          // validating against core alone is always a valid fallback.
+          process.stderr.write(`warn: profile <${p.iri}> could not be resolved (${p.reason}) -- continuing as core\n`);
+        }
+      }
+      profileWarnings = findUnregisteredPrefixes(db.blocks, resolvedProfiles);
+      for (const w of profileWarnings) process.stderr.write(`warn: ${w}\n`);
+    } else if (declaredProfiles.length > 0 && !useProfiles) {
+      if (verbose) log(`[validate] --no-profiles: skipping ${declaredProfiles.length} declared profile(s), validating against core only`);
+    }
+
+    shapesText = shapesParts.join('\n\n');
+    effectiveShapesRef = getDatabookNamespace();
+
+    if (verbose) {
+      log(`[validate] Header projection: ${dataText.split('\n').length} lines`);
+      log(`[validate] Shapes: core${resolvedProfiles.filter(p => p.ok).length ? ' + ' + resolvedProfiles.filter(p => p.ok).length + ' profile(s)' : ''}`);
+    }
+
+    if (dryRun) {
+      log(`[validate] Would validate the frontmatter of ${source} against ${effectiveShapesRef}`);
+      log(`[validate] Data: ${dataText.split('\n').length} lines`);
+      log(`[validate] Shapes: ${shapesText.split('\n').length} lines`);
+      process.exit(0);
+    }
   } else {
-    dataBlocks = db.blocks.filter(b => PUSHABLE_LABELS.has(b.label) && b.label !== 'sparql-update');
-  }
+    // ── Original mode: validate a domain data block against --shapes ────────
+    let dataBlocks;
+    if (blockId) {
+      const block = db.blocks.find(b => b.id === blockId);
+      if (!block) die(`no block with id '${blockId}'`, 2);
+      dataBlocks = [block];
+    } else {
+      dataBlocks = db.blocks.filter(b => PUSHABLE_LABELS.has(b.label) && b.label !== 'sparql-update');
+    }
 
-  if (dataBlocks.length === 0) die('no RDF data blocks found in source DataBook', 2);
+    if (dataBlocks.length === 0) die('no RDF data blocks found in source DataBook', 2);
 
-  // ── Resolve shapes ─────────────────────────────────────────────────────────
-  let shapesText;
-  if (!shapesRef) {
-    die('--shapes <ref> is required', 2);
-  }
+    if (shapesRef.includes('#')) {
+      // Fragment reference: file#block-id
+      const idx       = shapesRef.lastIndexOf('#');
+      const shapesFile = shapesRef.slice(0, idx);
+      const shapesId  = shapesRef.slice(idx + 1);
+      let shapesDb;
+      try { shapesDb = loadDataBookFile(shapesFile); } catch (e) { die(`shapes file: ${e.message}`, 2); }
+      const block = shapesDb.blocks.find(b => b.id === shapesId);
+      if (!block) die(`no block with id '${shapesId}' in ${shapesFile}`, 2);
+      shapesText = blockPayload(block);
+    } else {
+      // Plain Turtle file
+      try { shapesText = readFileSync(shapesRef, 'utf8'); } catch (e) { die(`shapes file not found: ${shapesRef}`, 2); }
+    }
 
-  if (shapesRef.includes('#')) {
-    // Fragment reference: file#block-id
-    const idx       = shapesRef.lastIndexOf('#');
-    const shapesFile = shapesRef.slice(0, idx);
-    const shapesId  = shapesRef.slice(idx + 1);
-    let shapesDb;
-    try { shapesDb = loadDataBookFile(shapesFile); } catch (e) { die(`shapes file: ${e.message}`, 2); }
-    const block = shapesDb.blocks.find(b => b.id === shapesId);
-    if (!block) die(`no block with id '${shapesId}' in ${shapesFile}`, 2);
-    shapesText = blockPayload(block);
-  } else {
-    // Plain Turtle file
-    try { shapesText = readFileSync(shapesRef, 'utf8'); } catch (e) { die(`shapes file not found: ${shapesRef}`, 2); }
-  }
+    effectiveShapesRef = shapesRef;
 
-  if (verbose) {
-    log(`[validate] Data blocks: ${dataBlocks.map(b => b.id ?? b.label).join(', ')}`);
-    log(`[validate] Shapes: ${shapesRef}`);
-  }
+    if (verbose) {
+      log(`[validate] Data blocks: ${dataBlocks.map(b => b.id ?? b.label).join(', ')}`);
+      log(`[validate] Shapes: ${shapesRef}`);
+    }
 
-  // ── Merge data blocks ─────────────────────────────────────────────────────
-  const dataText = dataBlocks.map(b => blockPayload(b)).join('\n');
+    dataText = dataBlocks.map(b => blockPayload(b)).join('\n');
 
-  if (dryRun) {
-    log(`[validate] Would validate ${dataBlocks.length} block(s) against ${shapesRef}`);
-    log(`[validate] Data: ${dataText.split('\n').length} lines`);
-    log(`[validate] Shapes: ${shapesText.split('\n').length} lines`);
-    process.exit(0);
+    if (dryRun) {
+      log(`[validate] Would validate ${dataBlocks.length} block(s) against ${shapesRef}`);
+      log(`[validate] Data: ${dataText.split('\n').length} lines`);
+      log(`[validate] Shapes: ${shapesText.split('\n').length} lines`);
+      process.exit(0);
+    }
   }
 
   // ── Execute validation ────────────────────────────────────────────────────
@@ -112,7 +160,7 @@ export async function runValidate(source, opts) {
   // ── Emit output ───────────────────────────────────────────────────────────
   if (wrap) {
     const wrapped = buildWrappedDataBook({
-      source, fm, shapesRef, reportText, formatOpt, hasViolation,
+      source, fm, shapesRef: effectiveShapesRef, reportText, formatOpt, hasViolation,
     });
     if (outPath && outPath !== '-') {
       atomicWriteEncoded(outPath, wrapped, enc);
