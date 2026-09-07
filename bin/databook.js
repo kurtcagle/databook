@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * databook — CLI for DataBook semantic documents. v1.4.2
+ * databook — CLI for DataBook semantic documents. v1.5.0
  */
 
 import { program } from 'commander';
@@ -30,7 +30,7 @@ import { runIndex }         from '../commands/index-graph.js';
 program
   .name('databook')
   .description('DataBook CLI — inspect, extract, push, pull, process, query, and validate DataBook semantic documents')
-  .version('1.4.2');
+  .version('1.5.0');
 
 // ─── databook head ────────────────────────────────────────────────────────────────
 program

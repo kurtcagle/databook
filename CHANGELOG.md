@@ -4,6 +4,29 @@ All notable changes to the DataBook format specification and reference CLI are d
 
 ## [Unreleased]
 
+Nothing yet.
+
+---
+
+## [1.5.0] — 2026-09-07
+
+Folds in everything below into one release: the v1.2 directive-parsing
+fix, the `databook:` header namespace re-home, the `mode`/`display_only`
+reconciliation, and the `profiles[]` / comment-key-prefix / `typeToken`
+work -- see each section for full detail. `package.json`'s version and
+`bin/databook.js`'s two independent version declarations (its header
+comment and its `.version()` call) had drifted out of sync with each
+other for several releases before this one (`package.json` sat at 1.2.0
+while `bin/databook.js` reported 1.4.2); this release reconciles all
+three to 1.5.0. `scripts/check-version-consistency.mjs` checks the three
+declarations agree and enforces this 1.5.0 floor -- run it locally before
+any future release (`node scripts/check-version-consistency.mjs`). A
+GitHub Actions workflow to run it automatically on every push is written
+(`.github/workflows/version-consistency.yml`) but not yet in this
+repository -- pushing a workflow file needs a PAT with the `workflow`
+scope, which the one in use here doesn't have; see the next entry once
+that's resolved.
+
 ### CLI
 
 - **Fixed:** `lib/parser.js` now recognises v1.2 block directive lines
@@ -151,12 +174,6 @@ All notable changes to the DataBook format specification and reference CLI are d
   entirely — so there is nothing there to consume the new module, and
   mirroring it would be inert. `lib/parser.js`, `lib/reify.js`, and the
   shapes file remain synced as always.
-
-### Not yet done (see the primer, §16 item 1)
-
-- `mode=printed|hidden|reference` is parsed but not yet applied: `push` and
-  `process` still decide display-only by label and by the CLI's own
-  `databook:display-only: true` key. Reconciling the two is the next slice.
 
 ---
 
