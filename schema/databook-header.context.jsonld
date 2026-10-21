@@ -1,0 +1,143 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "databook": "https://w3id.org/databook/header#DataBookHeader",
+    "processor-registry": "https://w3id.org/databook/header#ProcessorRegistryHeader",
+    "transformer-library": "https://w3id.org/databook/header#TransformerLibraryHeader",
+    "author": {
+      "@id": "https://w3id.org/databook/header#author",
+      "@context": {
+        "iri": {
+          "@id": "https://w3id.org/databook/header#authorIri",
+          "@type": "@id"
+        },
+        "name": "https://w3id.org/databook/header#authorName",
+        "role": "https://w3id.org/databook/header#authorRole"
+      },
+      "@container": "@set"
+    },
+    "created": {
+      "@id": "https://w3id.org/databook/header#created",
+      "@type": "http://www.w3.org/2001/XMLSchema#date"
+    },
+    "description": "https://w3id.org/databook/header#description",
+    "domain": {
+      "@id": "https://w3id.org/databook/header#domain",
+      "@type": "@id"
+    },
+    "graph": {
+      "@id": "https://w3id.org/databook/header#graph",
+      "@context": {
+        "named_graph": {
+          "@id": "https://w3id.org/databook/header#namedGraph",
+          "@type": "@id"
+        },
+        "namespace": {
+          "@id": "https://w3id.org/databook/header#namespace",
+          "@type": "@id"
+        },
+        "rdf_version": "https://w3id.org/databook/header#rdfVersion",
+        "reification": {
+          "@id": "https://w3id.org/databook/header#usesReification",
+          "@type": "http://www.w3.org/2001/XMLSchema#boolean"
+        },
+        "subjects": {
+          "@id": "https://w3id.org/databook/header#subjectCount",
+          "@type": "http://www.w3.org/2001/XMLSchema#integer"
+        },
+        "triple_count": {
+          "@id": "https://w3id.org/databook/header#tripleCount",
+          "@type": "http://www.w3.org/2001/XMLSchema#integer"
+        },
+        "turtle_version": "https://w3id.org/databook/header#turtleVersion",
+        "validator_note": "https://w3id.org/databook/header#validatorNote"
+      }
+    },
+    "imports": {
+      "@id": "https://w3id.org/databook/header#imports",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "license": "https://w3id.org/databook/header#license",
+    "process": {
+      "@id": "https://w3id.org/databook/header#process",
+      "@context": {
+        "agent": {
+          "@id": "https://w3id.org/databook/header#agent",
+          "@context": {
+            "iri": {
+              "@id": "https://w3id.org/databook/header#agentIri",
+              "@type": "@id"
+            },
+            "name": "https://w3id.org/databook/header#agentName",
+            "role": "https://w3id.org/databook/header#agentRole"
+          }
+        },
+        "inputs": {
+          "@id": "https://w3id.org/databook/header#input",
+          "@context": {
+            "block_id": "https://w3id.org/databook/header#blockId",
+            "description": "https://w3id.org/databook/header#description",
+            "iri": {
+              "@id": "https://w3id.org/databook/header#sourceIri",
+              "@type": "@id"
+            },
+            "role": "https://w3id.org/databook/header#role"
+          },
+          "@container": "@set"
+        },
+        "note": "https://w3id.org/databook/header#note",
+        "output": {
+          "@id": "https://w3id.org/databook/header#output",
+          "@context": {
+            "file": "https://w3id.org/databook/header#outputFile",
+            "graph": {
+              "@id": "https://w3id.org/databook/header#outputGraph",
+              "@type": "@id"
+            },
+            "url": {
+              "@id": "https://w3id.org/databook/header#outputUrl",
+              "@type": "@id"
+            }
+          }
+        },
+        "output_format": "https://w3id.org/databook/header#outputFormat",
+        "output_media_type": "https://w3id.org/databook/header#outputMediaType",
+        "timestamp": {
+          "@id": "https://w3id.org/databook/header#timestamp",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "transformer": "https://w3id.org/databook/header#transformer",
+        "transformer_iri": {
+          "@id": "https://w3id.org/databook/header#transformerIri",
+          "@type": "@id"
+        },
+        "transformer_type": "https://w3id.org/databook/header#transformerType"
+      }
+    },
+    "profiles": {
+      "@id": "https://w3id.org/databook/header#profile",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "publisher": "https://w3id.org/databook/header#publisher",
+    "shapes": {
+      "@id": "https://w3id.org/databook/header#shapes",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "subject": {
+      "@id": "https://w3id.org/databook/header#subject",
+      "@container": "@set"
+    },
+    "tags": {
+      "@id": "https://w3id.org/databook/header#tag",
+      "@container": "@set"
+    },
+    "title": "https://w3id.org/databook/header#title",
+    "version": "https://w3id.org/databook/header#version"
+  }
+}
