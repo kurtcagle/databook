@@ -4,7 +4,9 @@ All notable changes to the DataBook format specification and reference CLI are d
 
 ## [Unreleased]
 
-Nothing yet.
+### Specification (proposed)
+
+- **Proposed amendment to `SPEC.md` (header graph; v1.2 header zone and directives).** New §4.3 and a paragraph in §1 state that the frontmatter is one encoding of an RDF header graph, which carries the semantics; in the Markdown encoding it is normally YAML-LD (YAML-LD 1.0, a W3C Working Draft). The v1.2 changes follow. §6.2 now specifies the pre-fence comment zone; new §6.3 (directives), §6.4 (the closed `mode` set) and §6.5 (processing order); `databook:executable` deprecated in favour of `mode=executed`; §15.3 and §15.4 updated; examples moved to the pre-fence form; §19 records the change. This documents behaviour already implemented in `lib/parser.js` and used in the LLM skill. It is a working-group proposal and does not take effect until ratified. See the DataBook Specification Primer §8 and §16 item 1.
 
 ---
 

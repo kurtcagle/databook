@@ -1,9 +1,9 @@
 # DataBook Format Reference
 
-**Version:** 1.1  
-**Status:** Canonical specification  
+**Version:** 1.1 with proposed v1.2 amendments (§1, §4.3, §6.2–§6.5, §15.3–§15.4)  
+**Status:** Canonical specification (v1.1); amendments below are a working-group proposal until ratified  
 **Authors:** Kurt Cagle, Chloe Shannon  
-**Last revised:** 2026-04-25  
+**Last revised:** 2026-10-20  
 **Canonical namespace:** `https://w3id.org/databook/ns#`  
 **Repository:** `https://github.com/kurtcagle/databook`
 
@@ -40,6 +40,8 @@ A DataBook is a Markdown document structured to serve simultaneously as a human-
 1. A **YAML frontmatter block** carrying document identity, processing instructions, and provenance metadata.
 2. One or more **typed fenced blocks** carrying data payloads — graph data (Turtle, JSON-LD), queries (SPARQL), prompts, manifests, or other typed content.
 3. **Prose sections** providing human-readable context, documentation, and explanation.
+
+The YAML frontmatter is one encoding of an underlying **header graph**, an RDF graph that describes the DataBook. The semantics of a DataBook belong to that graph, not to the encoding that carries it. This reference specifies the Markdown encoding. Other encodings, such as an HTML document with `<meta>` elements, a PDF with embedded metadata, or an RDF serialisation (JSON-LD, Turtle, TriG), can carry the same header graph under their own bindings, which this version does not define (see §4.3).
 
 The combination is greater than the sum of its parts. A raw Turtle file is portable but not self-describing. A JSON-LD document is more structured but still mute about intent, authorship, and processing history. A SPARQL endpoint is powerful but heavyweight. The DataBook fills the gap: it travels with its own metadata, declares what it is for, carries its own provenance, and remains readable to both humans and machines without consulting an external registry.
 
@@ -180,6 +182,16 @@ There are no mandatory ordering rules for prose and fenced blocks in the body zo
 4. **Usage prose** — how to load, validate, query, or extend the data.
 5. **Validation notes** — shape compliance, known constraints, edge cases.
 6. **Manifest block** (if present) — dependency graph for pipeline use.
+
+### 4.3 The header graph
+
+The frontmatter describes the DataBook as an RDF graph, the **header graph**, whose subject node is the DataBook's `id` IRI. The header graph must be well-formed RDF as defined by RDF 1.1 Concepts, or by RDF 1.2 where it uses RDF 1.2 features.
+
+In the Markdown encoding the frontmatter is normally YAML-LD: reading it as [YAML-LD 1.0](https://www.w3.org/TR/2026/WD-yaml-ld-10-20260521/) with the DataBook JSON-LD context yields the header graph. A processor may implement the same mapping directly, without a YAML-LD processor, provided it yields an isomorphic graph.
+
+The semantics of a DataBook are fixed by the header graph, not by its encoding. Two documents whose header graphs are isomorphic have the same header. A processor must not give meaning to a feature of the encoding that contributes no triples to the graph, such as key order, comments or quoting style. A validator checks the header graph, never the YAML text.
+
+> **Note:** YAML-LD 1.0 is a W3C Working Draft of the JSON-LD Working Group at the time of writing, and the DataBook JSON-LD context is not yet published. The two efforts are developed in parallel: YAML-LD supplies the processing model, and DataBook supplies a use case, YAML in Markdown front matter, that YAML-LD 1.0 does not address.
 
 ---
 
@@ -430,7 +442,7 @@ Parsers not supporting the encryption profile must treat encrypted blocks as opa
 
 #### Imperative code (display by default)
 
-Standard code fence labels (`python`, `javascript`, `typescript`, `bash`, `r`, `sql`, etc.) are permitted and carry their normal Markdown meaning. They are **display blocks** by default — rendered for human reading but not treated as DataBook data payloads. To opt a code block into executable mode, set `databook:executable: true` (see §6.2).
+Standard code fence labels (`python`, `javascript`, `typescript`, `bash`, `r`, `sql`, etc.) are permitted and carry their normal Markdown meaning. They are **display blocks** by default — rendered for human reading but not treated as DataBook data payloads. To opt a code block into executable mode, set `mode=executed` (see §6.4). The v1.1 key `databook:executable: true` is deprecated but still accepted (see §6.2).
 
 > **Warning:** Executable imperative code is a meaningfully different security surface from declarative queries. DataBook runners must require explicit user confirmation before executing any imperative block and must sandbox execution where possible.
 
@@ -438,35 +450,46 @@ Standard code fence labels (`python`, `javascript`, `typescript`, `bash`, `r`, `
 
 Any fence label not listed in this vocabulary is treated by a DataBook-aware parser as a **display block** — shown to human readers but not processed as a data payload. This ensures forward compatibility: future labels and extension labels render gracefully in existing parsers.
 
-### 6.2 Block-level metadata via HTML comments
+### 6.2 Block headers: the pre-fence comment zone
 
-Additional metadata for a specific block is attached using HTML comment lines immediately following the opening fence:
+Block-level metadata and processing directives are attached to a block in its **header zone**: the run of consecutive HTML comment lines immediately above the block's opening fence. One blank line between the zone and the fence is tolerated.
 
 ````
-```turtle
 <!-- databook:id: capabilities-block -->
 <!-- databook:graph: https://example.org/my-databook#capabilities -->
 <!-- databook:label: Capabilities taxonomy fragment -->
+<!-- mode=printed -->
+```turtle
 @prefix ex: <https://example.org/> .
 ex:Thing a ex:Class .
 ```
 ````
 
-The `databook:` prefix on comment keys is the reserved namespace for DataBook block metadata. Comment lines using this prefix before any non-comment content in the block are metadata lines; they must not be passed to the block's parser. Any unrecognised `databook:` key must be ignored without error.
+The fence contents are pure payload. A block can be handed to the parser for its label byte for byte, an extracted block is identical to its payload, and no processing instruction can leak into the data.
 
-Recognised block-level comment keys:
+**Legacy form.** In v1.0 and v1.1 the comment lines were written inside the fence, as the first lines of the payload. A parser must accept that form, must strip those lines from the payload, and should warn. A producer must not emit it. If a block carries a value in both places, the header-zone value wins.
+
+Each comment line in the zone is one of three kinds:
+
+1. A **metadata key**, `<!-- databook:key: value -->` (this section).
+2. A **directive**, `<!-- key=value -->` (§6.3).
+3. A **prose comment**, any other comment. A prose comment ends the zone and is discarded; the walk upward from the fence stops there.
+
+The `databook:` prefix on metadata keys is the reserved namespace for DataBook block metadata. Any unrecognised `databook:` key, and any key under another prefix, must be ignored without error. A metadata line is never passed to the block's parser.
+
+Recognised block-level metadata keys:
 
 | Key | Description |
 | --- | --- |
-| `databook:id` | Block identifier (see Section 7) |
+| `databook:id` | Block identifier (see Section 7). When present it must be the first line of the zone. |
 | `databook:graph` | Named graph IRI for this block; overrides `graph.named_graph` in frontmatter |
 | `databook:label` | Human-readable label for this specific block |
 | `databook:base` | Base IRI for relative IRI resolution within this block |
 | `databook:import` | IRI of another DataBook or graph whose namespace prefixes should be in scope |
 | `databook:encoding` | Character encoding if not UTF-8 |
-| `databook:executable` | `true` opts an imperative code block into executable mode |
 | `databook:runtime` | Declares the execution environment required (e.g., `python>=3.11`, `node>=20`) |
 | `databook:param` | Declares a substitutable parameter for query blocks (see §8) |
+| `databook:executable` | **Deprecated.** `true` opts an imperative code block into execution. A parser must read it as `mode=executed` with no endpoint and should warn. Use `mode=executed` (§6.4). |
 
 For encrypted blocks, additional keys are defined in the encryption profile (see Section 13):
 
@@ -474,6 +497,53 @@ For encrypted blocks, additional keys are defined in the encryption profile (see
 | --- | --- |
 | `databook:encrypted-media-type` | The MIME type of the plaintext content |
 | `databook:key-ref` | IRI of the encryption key or key manifest entry |
+
+### 6.3 Directives
+
+A directive is a processing instruction. It has the form `<!-- key=value key=value -->`: no namespace, `=` as the separator, one or more pairs per comment line, no nesting, no YAML.
+
+A parser tells the two kinds of comment apart with one test. If the comment body starts with `databook:` it is a metadata key. Otherwise, if it matches `^<!--\s*((?:[\w-]+=\S+\s*)+)-->$`, each `key=value` token is a directive. Otherwise it is a prose comment.
+
+Within the zone the order is: `databook:id` first, then other `databook:` keys, then directive lines. Directives may share one comment line or be split across several; a parser accumulates the pairs from every directive line in the zone. A directive-shaped line inside a fence is payload, not a directive.
+
+| Directive | Applies to | Description |
+| --- | --- | --- |
+| `mode=<value>` | any block | The primary directive; see §6.4. |
+| `endpoint=<IRI>` | `mode=executed` | Endpoint or service to submit the block to. Overrides `process.output.url` for this block. |
+| `cache=true\|false` | `mode=executed` | Whether to store the result back into the DataBook. Default `false`. |
+| `authority=<IRI>` | any block | The named authority asserting the block's content. |
+| `version=<semver>` | any block | Block-level version, so a DataBook can carry two versions of a shape or query side by side. |
+| `result-iri=<IRI>` | `mode=executed` | IRI of the output produced by execution. Set by a processor after the fact; absent beforehand. |
+| `expires=<dateTime>` | `mode=executed` | `xsd:dateTime` after which a cached result is stale. |
+
+Unrecognised directive keys must be ignored without error.
+
+### 6.4 Modes
+
+The values of `mode` are a closed set.
+
+| Value | Meaning |
+| --- | --- |
+| `executed` | Runnable. Submit to the declared `endpoint` or execution environment. |
+| `rendered` | A rendering specification. Hand the payload to the renderer the fence label names (diagram, map, chart). |
+| `printed` | Show as syntax-highlighted code. The block is for reading, not execution. The default for display code blocks. |
+| `hidden` | Present and available to processors, but suppressed from every rendered view. For grounding data, provenance trails and intermediate results. |
+| `reference` | Not displayed by default but available on explicit request, as a footnote is. |
+
+A block with a data-payload label (§6.1) and no `mode` is a live payload and is loaded as such. Defaults and fall-backs:
+
+- `mode=executed` with neither `endpoint` nor `databook:runtime` is treated as `mode=printed`.
+- `mode=rendered` with a label the processor cannot render falls back to `mode=printed`, with a warning.
+
+> **Warning:** A processor must require explicit user confirmation before executing any block with `mode=executed`, and must sandbox imperative code where possible (see §6.1).
+
+### 6.5 Processing a block
+
+For each fenced block a processor:
+
+1. Collects the consecutive comment lines immediately above the opening fence (§6.2), and classifies each as a metadata key, a directive or a prose comment (§6.3).
+2. Routes the payload by its fence label (§6.1).
+3. Applies `mode` (§6.4) to decide whether to execute, render, print, hide or hold the block.
 
 ---
 
@@ -486,8 +556,8 @@ A DataBook is a single file. Individual blocks within it can be addressed indepe
 Set the identifier via the `databook:id` comment key in the block header:
 
 ````
-```turtle
 <!-- databook:id: taxonomy-block -->
+```turtle
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 ...
 ```
@@ -516,9 +586,9 @@ The `process.inputs` sequence and the `encryption.blocks` sequence both referenc
 The `databook:import` comment key allows a block to declare that it depends on content from another DataBook, identified by IRI. A parser may use this to pre-load prefix declarations or graph context:
 
 ````
-```turtle
 <!-- databook:id: instances-block -->
 <!-- databook:import: https://example.org/databooks/base-shapes-v1 -->
+```turtle
 ex:MyInstance a ex:MyClass .
 ```
 ````
@@ -534,9 +604,9 @@ SPARQL blocks (and other query blocks that support variable binding) may declare
 The SPARQL `VALUES` clause is the natural parameter mechanism. A `VALUES` clause with a single binding serves as both the default value (valid SPARQL if unsubstituted) and the substitution target:
 
 ````
-```sparql
 <!-- databook:id: select-by-type -->
 <!-- databook:param: entityType type=IRI default=ex:Person -->
+```sparql
 PREFIX ex: <https://example.org/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
@@ -569,9 +639,9 @@ Multiple `databook:param` declarations are permitted, one per variable.
 A parameter with no default is declared with the `required` flag and an empty VALUES binding set:
 
 ````
-```sparql
 <!-- databook:id: select-by-id -->
 <!-- databook:param: resourceId type=IRI required -->
+```sparql
 PREFIX ex: <https://example.org/>
 
 SELECT ?p ?o WHERE {
@@ -790,8 +860,8 @@ Core build classes and properties:
 ### 11.2 Manifest block example
 
 ````
-```manifest
 <!-- databook:id: pipeline-manifest -->
+```manifest
 @prefix build: <https://w3id.org/databook/ns#> .
 @prefix db:    <https://example.org/databooks/> .
 
@@ -994,8 +1064,8 @@ encryption:
 ### 13.3 Encrypted block structure
 
 ````
-```encrypted-turtle
 <!-- databook:id: results-block -->
+```encrypted-turtle
 T2xkSm9lQ3J5cHRvZ3JhcGh5V2FzSGVyZUJ1dE5vd1dlVXNlQUVTLTI1Ni1HQ00=
 ```
 ````
@@ -1139,7 +1209,9 @@ A conformant DataBook core parser must:
 - Ignore unrecognised YAML frontmatter keys without error.
 - Ignore unrecognised `databook:` comment keys within block headers without error.
 - Process `databook:id` comment keys and make blocks addressable by the resulting identifier.
-- Require explicit user confirmation before executing any block marked `databook:executable: true`.
+- Collect the header zone above each fence, distinguish metadata keys from directives (§6.3), and apply `mode` (§6.4).
+- Accept the v1.1 in-fence header form, strip it from the payload, and warn.
+- Require explicit user confirmation before executing any block with `mode=executed`.
 
 ### 15.4 Error handling
 
@@ -1154,7 +1226,11 @@ A conformant DataBook core parser must:
 | Block execution failure (sparql-update block) | Raise an error. Halt. Partial graph mutations are unsafe. |
 | Encrypted block without matching frontmatter entry | Raise a validation error. The block cannot be safely identified. |
 | Encryption auth tag mismatch | Raise an error. Do not load the block. This is a security-critical failure. |
-| `databook:executable: true` without user confirmation | Refuse execution. Raise an error. |
+| `mode=executed` without user confirmation | Refuse execution. Raise an error. |
+| `mode=executed` with neither `endpoint` nor `databook:runtime` | Treat as `mode=printed`. |
+| `mode=rendered` with an unsupported label | Emit a warning. Fall back to `mode=printed`. |
+| `databook:executable` present | Accept as `mode=executed` with no endpoint. Emit a warning that the key is deprecated. |
+| Header lines inside the fence (v1.1 form) | Accept. Strip from the payload. Emit a warning. |
 | `databook:import` circular reference | Raise a parse error. |
 
 ---
@@ -1243,9 +1319,9 @@ The `colour:ColourScheme` concept scheme contains two top concepts
 
 ## Primary Data
 
-```turtle
 <!-- databook:id: colour-taxonomy-block -->
 <!-- databook:graph: https://example.org/databooks/colour-taxonomy-v1#graph -->
+```turtle
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
 @prefix colour: <https://example.org/taxonomy/colour/> .
@@ -1278,8 +1354,8 @@ colour:Blue a skos:Concept ;
 
 Retrieve all concepts with their broader categories:
 
-```sparql
 <!-- databook:id: select-all-concepts -->
+```sparql
 PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 PREFIX colour: <https://example.org/taxonomy/colour/>
 
@@ -1325,8 +1401,8 @@ process:
 
 [Prose here.]
 
-```turtle
 <!-- databook:id: primary-block -->
+```turtle
 @prefix ex: <https://example.org/> .
 ex:Thing a ex:Class .
 ```
@@ -1385,7 +1461,7 @@ ex:Thing a ex:Class .
 | `plantuml` | PlantUML |
 | `d2` | D2 diagram |
 
-#### Imperative code (display by default; `databook:executable: true` to opt in)
+#### Imperative code (display by default; `mode=executed` to opt in)
 
 | Label | Use for |
 | --- | --- |
@@ -1442,15 +1518,36 @@ Used for all build vocabulary terms: `build:Target`, `build:Stage`, `build:Sourc
 
 `id` · `title` · `type` · `version` · `created` · `author` · `license` · `domain` · `subject` · `description` · `graph` · `shapes` · `process` · `encryption`
 
+### Directive keys
+
+`mode` · `endpoint` · `cache` · `authority` · `version` · `result-iri` · `expires`
+
+`mode` values: `executed` · `rendered` · `printed` · `hidden` · `reference`
+
 ### Reserved `databook:` comment keys
 
-`databook:id` · `databook:graph` · `databook:label` · `databook:base` · `databook:import` · `databook:encoding` · `databook:executable` · `databook:runtime` · `databook:param` · `databook:encrypted-media-type` · `databook:key-ref`
+`databook:id` · `databook:graph` · `databook:label` · `databook:base` · `databook:import` · `databook:encoding` · `databook:executable` *(deprecated)* · `databook:runtime` · `databook:param` · `databook:encrypted-media-type` · `databook:key-ref`
 
 ---
 
 ## 19. Changelog
 
-### v1.1 — 2026-04-25 *(current)*
+### v1.2 amendments — 2026-10-20 *(proposed; not yet ratified)*
+
+**Header graph**
+- §1 and new §4.3: the frontmatter is one encoding of an RDF header graph; the graph, not the encoding, carries the semantics. In the Markdown encoding the frontmatter is normally YAML-LD, with a direct mapping permitted. Other encodings are anticipated but not defined.
+
+**Block headers and directives**
+- §6.2 rewritten: block metadata moves from inside the fence to the pre-fence comment zone. The v1.1 in-fence form remains accepted on input, with a warning, and must not be emitted.
+- §6.3 added: directives (`key=value` processing instructions) and the rule that distinguishes them from `databook:` metadata keys.
+- §6.4 added: the closed `mode` set (`executed`, `rendered`, `printed`, `hidden`, `reference`) and its defaults.
+- §6.5 added: the order in which a processor reads a block.
+- `databook:executable` deprecated in favour of `mode=executed`; still accepted, with a warning.
+- Parser behaviour (§15.3) and the error table (§15.4) updated to match. Examples throughout use the pre-fence form.
+
+These amendments describe behaviour already implemented in the reference CLI (header zone, directives) and used in the LLM skill (`mode`). They do not change frontmatter, the process stamp, block labels or the encryption profile.
+
+### v1.1 — 2026-04-25 *(current canonical)*
 
 **Frontmatter form**
 - Bare `---`-delimited YAML frontmatter is now canonical. This is the standard Markdown frontmatter convention and renders correctly in GitHub, Claude, and all common Markdown tooling.
