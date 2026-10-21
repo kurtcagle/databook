@@ -1,6 +1,6 @@
 # DataBook Format Reference
 
-**Version:** 1.1 with proposed v1.2 amendments (§6.2–§6.5, §15.3–§15.4)  
+**Version:** 1.1 with proposed v1.2 amendments (§1, §4.3, §6.2–§6.5, §15.3–§15.4)  
 **Status:** Canonical specification (v1.1); amendments below are a working-group proposal until ratified  
 **Authors:** Kurt Cagle, Chloe Shannon  
 **Last revised:** 2026-10-20  
@@ -40,6 +40,8 @@ A DataBook is a Markdown document structured to serve simultaneously as a human-
 1. A **YAML frontmatter block** carrying document identity, processing instructions, and provenance metadata.
 2. One or more **typed fenced blocks** carrying data payloads — graph data (Turtle, JSON-LD), queries (SPARQL), prompts, manifests, or other typed content.
 3. **Prose sections** providing human-readable context, documentation, and explanation.
+
+The YAML frontmatter is one encoding of an underlying **header graph**, an RDF graph that describes the DataBook. The semantics of a DataBook belong to that graph, not to the encoding that carries it. This reference specifies the Markdown encoding. Other encodings, such as an HTML document with `<meta>` elements, a PDF with embedded metadata, or an RDF serialisation (JSON-LD, Turtle, TriG), can carry the same header graph under their own bindings, which this version does not define (see §4.3).
 
 The combination is greater than the sum of its parts. A raw Turtle file is portable but not self-describing. A JSON-LD document is more structured but still mute about intent, authorship, and processing history. A SPARQL endpoint is powerful but heavyweight. The DataBook fills the gap: it travels with its own metadata, declares what it is for, carries its own provenance, and remains readable to both humans and machines without consulting an external registry.
 
@@ -180,6 +182,16 @@ There are no mandatory ordering rules for prose and fenced blocks in the body zo
 4. **Usage prose** — how to load, validate, query, or extend the data.
 5. **Validation notes** — shape compliance, known constraints, edge cases.
 6. **Manifest block** (if present) — dependency graph for pipeline use.
+
+### 4.3 The header graph
+
+The frontmatter describes the DataBook as an RDF graph, the **header graph**, whose subject node is the DataBook's `id` IRI. The header graph must be well-formed RDF as defined by RDF 1.1 Concepts, or by RDF 1.2 where it uses RDF 1.2 features.
+
+In the Markdown encoding the frontmatter is normally YAML-LD: reading it as [YAML-LD 1.0](https://www.w3.org/TR/2026/WD-yaml-ld-10-20260521/) with the DataBook JSON-LD context yields the header graph. A processor may implement the same mapping directly, without a YAML-LD processor, provided it yields an isomorphic graph.
+
+The semantics of a DataBook are fixed by the header graph, not by its encoding. Two documents whose header graphs are isomorphic have the same header. A processor must not give meaning to a feature of the encoding that contributes no triples to the graph, such as key order, comments or quoting style. A validator checks the header graph, never the YAML text.
+
+> **Note:** YAML-LD 1.0 is a W3C Working Draft of the JSON-LD Working Group at the time of writing, and the DataBook JSON-LD context is not yet published. The two efforts are developed in parallel: YAML-LD supplies the processing model, and DataBook supplies a use case, YAML in Markdown front matter, that YAML-LD 1.0 does not address.
 
 ---
 
@@ -1521,6 +1533,9 @@ Used for all build vocabulary terms: `build:Target`, `build:Stage`, `build:Sourc
 ## 19. Changelog
 
 ### v1.2 amendments — 2026-10-20 *(proposed; not yet ratified)*
+
+**Header graph**
+- §1 and new §4.3: the frontmatter is one encoding of an RDF header graph; the graph, not the encoding, carries the semantics. In the Markdown encoding the frontmatter is normally YAML-LD, with a direct mapping permitted. Other encodings are anticipated but not defined.
 
 **Block headers and directives**
 - §6.2 rewritten: block metadata moves from inside the fence to the pre-fence comment zone. The v1.1 in-fence form remains accepted on input, with a warning, and must not be emitted.
